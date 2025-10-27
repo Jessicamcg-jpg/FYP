@@ -1,1 +1,12 @@
-library igraph
+ 
+library(readr)
+library(igraph)
+library(tidyverse)
+```
+
+
+General election 2020 data from gov.ie
+```{r}
+GElection <- read_csv("C:\\Users\\lilly\\Documents\\GELECTION-DONEGAL.csv")
+ 
+glimpse(GElection)
