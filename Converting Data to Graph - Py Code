@@ -1,28 +1,21 @@
 def graph_of_data(df):
-    #merge these columns, will be labels of the nodes
+    #--Merge these columns, will be labels of the nodes
     df["Name"] = df["Candidate surname"].astype("str") +" " + df["Candidate First Name"].astype("str")
-    #create the DiGraph
+    #--Create the DiGraph
     G = nx.DiGraph()
     count_lst = list(df["Count Number"].unique())
     count_lst.remove(1)
-    #DEBUG: print(count_lst)
-    #filter by count
+    #--Filter by count
     for count in count_lst:
         filtered_df1 = df[df["Count Number"]==count]
-        #DEBUG: filtered_df1
         #--get names of those whose votes are transferred
         src_cands = filtered_df1[filtered_df1["Transfers"]<0]
-        #DEBUG: src_cands
         #--get names of those who receive these transfers
         to_cands =filtered_df1[filtered_df1["Transfers"]>0]
-        #DEBUG: to_cands
         src_names = list(src_cands["Name"].values)
-        #DEBUG: src_names
         to_names = list(to_cands["Name"].values)
-        #DEBUG: to_names
         #--get number of transfers
         wgts = list(to_cands["Transfers"].values)
-        #DEBUG: wgts
         
         #--Create a weighted edge between each source candidate and each target candidate
         
