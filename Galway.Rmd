@@ -5,26 +5,137 @@ date: "2025-10-29"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+Galwayelection <- read_csv("C:\\Users\\lilly\\Documents\\GalwayW.csv")
+ 
+glimpse(Galwayelection)
 ```
 
-## R Markdown
+```{r}
+nodes <- Galwayelection %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\Galwayelection_nodes.csv")
 ```
 
-## Including Plots
+```{r}
+# Create events based on negative transfers  
+events <- Galwayelection %>%
+  filter(Transfers < 0) %>%
+  mutate(Event_Count = as.numeric(`Count Number`),
+         Event_Count_next = Event_Count + 1,
+         Votes_Lost = abs(Transfers)) %>%
+  select(Source = `Candidate Id`, Event_Count, Event_Count_next, Votes_Lost)
 
-You can also embed plots, for example:
+# Create recipients
+recipients <- Galwayelection %>%
+  filter(Transfers > 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Target = `Candidate Id`, Count_Number, Transfers)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Create edges with proportional allocation
+edges <- recipients %>%
+  inner_join(events, by = join_by(Count_Number == Event_Count_next), 
+             relationship = "many-to-many") %>%
+  filter(!is.na(Source)) %>%
+  # KEY: Allocate proportionally based on how much each source lost
+  group_by(Count_Number, Target) %>%
+  mutate(
+    Total_Available = sum(Votes_Lost),
+    Proportion = Votes_Lost / Total_Available,
+    Allocated_Transfers = Transfers * Proportion
+  ) %>%
+  ungroup() %>%
+  select(from = Source, to = Target, Transfers = Allocated_Transfers) %>%
+  group_by(from, to) %>%
+  summarise(Transfers = sum(Transfers, na.rm = TRUE), .groups = "drop")
+
+sum(edges$Transfers)
+write_csv(edges, "C:/Users/lilly/Downloads/Galwayelection_edges.csv")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}    
+#Worried non-transfered were included in the graph
+# What left in each count (negative transfers from eliminated/elected)
+votes_leaving <- Galwayelection %>%
+  filter(Transfers < 0) %>%   
+  group_by(`Count Number`) %>%
+  summarise(
+    Total_Left = abs(sum(Transfers, na.rm = TRUE)), # sum of negative transfers (absolute value)
+    Who_Left = paste(unique(paste(`Candidate First Name`, `Candidate surname`)), collapse = ", ")
+  )
+
+# What arrived in each count (positive transfers)
+votes_arriving <- Galwayelection %>%
+  filter(Transfers > 0) %>%   # keep rows where votes increased
+  group_by(`Count Number`) %>%
+  summarise(
+    Total_Arrived = sum(Transfers, na.rm = TRUE)
+  )
+
+# Compare
+flow_comparison <- votes_leaving %>%
+  left_join(votes_arriving, by = "Count Number") %>%  #joins the table
+  mutate(
+    Non_Transferable = Total_Left - Total_Arrived   # looks at the difference
+  ) %>%
+  arrange(`Count Number`)
+
+print(flow_comparison)
+
+# Total non-transferable
+total_nt <- sum(flow_comparison$Non_Transferable, na.rm = TRUE)  
+print(paste("Total non-transferable:", total_nt))
+```
+
+
+
+
+```{r}
+#better graph
+library(ggraph)
+nodes <-  Galwayelection %>%
+ group_by(`Candidate Id`) %>%
+  # Get the final status of candidate
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(name = `Candidate Id`)
+g <- graph_from_data_frame(edges, vertices = nodes, directed = TRUE)
+ggraph(g, layout = "fr") +
+  # Edges (vote transfers)
+  geom_edge_link(
+    aes(width = Transfers, alpha = Transfers),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(3, 'mm'),
+    lineend = "round"
+  ) +
+  
+ geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red")) +
+  
+  # Labels (candidate names)
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,    #  repel overlapping labels
+    size = 3.5,
+    fontface = "bold",
+    color = "black"
+  ) +
+  
+  #  Legend and theme
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network 2020 – Galway West General Election") 
+```
+
