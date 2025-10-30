@@ -1,3 +1,6 @@
+### make_networkx_from_csv.py
+# DM and JMcG 30 Oct 2025
+
 def graph_of_data(df):
     #--Merge these columns, will be labels of the nodes
     df["Name"] = df["Candidate surname"].astype("str") +" " + df["Candidate First Name"].astype("str")
