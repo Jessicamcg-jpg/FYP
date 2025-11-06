@@ -1,0 +1,118 @@
+Constituency Name,Candidate surname,Candidate First Name,Result,Count Number,Non-Transferable,Occurred On Count,Required To Reach Quota,Required To Save Deposit,Transfers,Votes,Total Votes,Constituency Number,Candidate Id
+Donegal,Casey,Peter,,1,0,0,11766,2085,0,1143,1143,9,161
+Donegal,Casey,Peter,,2,0,0,11105,1424,661,1143,1804,9,161
+Donegal,Casey,Peter,,3,0,0,10959,1278,146,1143,1950,9,161
+Donegal,Casey,Peter,,4,0,0,10777,1096,182,1143,2132,9,161
+Donegal,Casey,Peter,Excluded,5,0,5,0,1096,-2132,1143,0,9,161
+Donegal,Casey,Peter,Excluded,6,0,5,0,1096,0,1143,0,9,161
+Donegal,Casey,Peter,Excluded,7,0,5,0,1096,0,1143,0,9,161
+Donegal,Casey,Peter,Excluded,8,0,5,0,1096,0,1143,0,9,161
+Donegal,Casey,Peter,Excluded,9,0,5,0,1096,0,1143,0,9,161
+Donegal,Doherty,Pearse,Elected,1,0,1,0,0,0,21044,21044,9,162
+Donegal,Doherty,Pearse,Elected,2,3069,1,0,0,-8135,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,3,3069,1,0,0,0,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,4,3069,1,0,0,0,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,5,3069,1,0,0,0,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,6,3069,1,0,0,0,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,7,3069,1,0,0,0,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,8,3069,1,0,0,0,21044,12909,9,162
+Donegal,Doherty,Pearse,Elected,9,3069,1,0,0,0,21044,12909,9,162
+Donegal,Gallagher,Pat The Cope,,1,0,0,5440,0,0,7469,7469,9,163
+Donegal,Gallagher,Pat The Cope,,2,0,0,4248,0,1192,7469,8661,9,163
+Donegal,Gallagher,Pat The Cope,,3,0,0,4221,0,27,7469,8688,9,163
+Donegal,Gallagher,Pat The Cope,,4,0,0,4180,0,41,7469,8729,9,163
+Donegal,Gallagher,Pat The Cope,,5,0,0,4004,0,176,7469,8905,9,163
+Donegal,Gallagher,Pat The Cope,,6,0,0,3874,0,130,7469,9035,9,163
+Donegal,Gallagher,Pat The Cope,,7,0,0,3391,0,483,7469,9518,9,163
+Donegal,Gallagher,Pat The Cope,,8,0,0,2763,0,628,7469,10146,9,163
+Donegal,Gallagher,Pat The Cope,Excluded,9,0,9,1835,0,928,7469,11074,9,163
+Donegal,Harley,Martin M.,,1,0,0,9853,172,0,3056,3056,9,164
+Donegal,Harley,Martin M.,,2,0,0,9418,0,435,3056,3491,9,164
+Donegal,Harley,Martin M.,,3,0,0,9407,0,11,3056,3502,9,164
+Donegal,Harley,Martin M.,,4,0,0,9383,0,24,3056,3526,9,164
+Donegal,Harley,Martin M.,,5,0,0,9259,0,124,3056,3650,9,164
+Donegal,Harley,Martin M.,,6,0,0,9138,0,121,3056,3771,9,164
+Donegal,Harley,Martin M.,,7,0,0,9013,0,125,3056,3896,9,164
+Donegal,Harley,Martin M.,Excluded,8,0,8,0,0,-3896,3056,0,9,164
+Donegal,Harley,Martin M.,Excluded,9,0,8,0,0,0,3056,0,9,164
+Donegal,MacLochlainn,P�draig,Elected,1,0,1,0,0,0,13891,13891,9,165
+Donegal,MacLochlainn,P�draig,Elected,2,0,1,0,0,0,13891,13891,9,165
+Donegal,MacLochlainn,P�draig,Elected,3,2878,1,0,0,-982,13891,12909,9,165
+Donegal,MacLochlainn,P�draig,Elected,4,2878,1,0,0,0,13891,12909,9,165
+Donegal,MacLochlainn,P�draig,Elected,5,2878,1,0,0,0,13891,12909,9,165
+Donegal,MacLochlainn,P�draig,Elected,6,2878,1,0,0,0,13891,12909,9,165
+Donegal,MacLochlainn,P�draig,Elected,7,2878,1,0,0,0,13891,12909,9,165
+Donegal,MacLochlainn,P�draig,Elected,8,2878,1,0,0,0,13891,12909,9,165
+Donegal,MacLochlainn,P�draig,Elected,9,2878,1,0,0,0,13891,12909,9,165
+Donegal,Mc Guinness,Arthur Desmond,,1,0,0,12853,3172,0,56,56,9,168
+Donegal,Mc Guinness,Arthur Desmond,,2,0,0,12810,3129,43,56,99,9,168
+Donegal,Mc Guinness,Arthur Desmond,,3,0,0,12800,3119,10,56,109,9,168
+Donegal,Mc Guinness,Arthur Desmond,Excluded,4,0,4,0,3119,-109,56,0,9,168
+Donegal,Mc Guinness,Arthur Desmond,Excluded,5,0,4,0,3119,0,56,0,9,168
+Donegal,Mc Guinness,Arthur Desmond,Excluded,6,0,4,0,3119,0,56,0,9,168
+Donegal,Mc Guinness,Arthur Desmond,Excluded,7,0,4,0,3119,0,56,0,9,168
+Donegal,Mc Guinness,Arthur Desmond,Excluded,8,0,4,0,3119,0,56,0,9,168
+Donegal,Mc Guinness,Arthur Desmond,Excluded,9,0,4,0,3119,0,56,0,9,168
+Donegal,McConalogue,Charlie,,1,0,0,4562,0,0,8347,8347,9,166
+Donegal,McConalogue,Charlie,,2,0,0,4038,0,524,8347,8871,9,166
+Donegal,McConalogue,Charlie,,3,0,0,3887,0,151,8347,9022,9,166
+Donegal,McConalogue,Charlie,,4,0,0,3831,0,56,8347,9078,9,166
+Donegal,McConalogue,Charlie,,5,0,0,3484,0,347,8347,9425,9,166
+Donegal,McConalogue,Charlie,,6,0,0,3276,0,208,8347,9633,9,166
+Donegal,McConalogue,Charlie,,7,0,0,2855,0,421,8347,10054,9,166
+Donegal,McConalogue,Charlie,,8,0,0,2639,0,216,8347,10270,9,166
+Donegal,McConalogue,Charlie,Elected,9,0,9,1477,0,1162,8347,11432,9,166
+Donegal,McConnell,Niall,,1,0,0,12329,2648,0,580,580,9,167
+Donegal,McConnell,Niall,,2,0,0,12106,2425,223,580,803,9,167
+Donegal,McConnell,Niall,,3,0,0,12077,2396,29,580,832,9,167
+Donegal,McConnell,Niall,Excluded,4,0,4,0,2396,-832,580,0,9,167
+Donegal,McConnell,Niall,Excluded,5,0,4,0,2396,0,580,0,9,167
+Donegal,McConnell,Niall,Excluded,6,0,4,0,2396,0,580,0,9,167
+Donegal,McConnell,Niall,Excluded,7,0,4,0,2396,0,580,0,9,167
+Donegal,McConnell,Niall,Excluded,8,0,4,0,2396,0,580,0,9,167
+Donegal,McConnell,Niall,Excluded,9,0,4,0,2396,0,580,0,9,167
+Donegal,McHugh,Joe,,1,0,0,5288,0,0,7621,7621,9,169
+Donegal,McHugh,Joe,,2,0,0,4816,0,472,7621,8093,9,169
+Donegal,McHugh,Joe,,3,0,0,4780,0,36,7621,8129,9,169
+Donegal,McHugh,Joe,,4,0,0,4739,0,41,7621,8170,9,169
+Donegal,McHugh,Joe,,5,0,0,4600,0,139,7621,8309,9,169
+Donegal,McHugh,Joe,,6,0,0,4169,0,431,7621,8740,9,169
+Donegal,McHugh,Joe,,7,0,0,3921,0,248,7621,8988,9,169
+Donegal,McHugh,Joe,,8,0,0,1989,0,1932,7621,10920,9,169
+Donegal,McHugh,Joe,Elected,9,0,9,805,0,1184,7621,12104,9,169
+Donegal,O'Donnell,John,,1,0,0,8174,0,0,4735,4735,9,170
+Donegal,O'Donnell,John,,2,0,0,7289,0,885,4735,5620,9,170
+Donegal,O'Donnell,John,,3,0,0,7129,0,160,4735,5780,9,170
+Donegal,O'Donnell,John,,4,0,0,7018,0,111,4735,5891,9,170
+Donegal,O'Donnell,John,,5,0,0,6741,0,277,4735,6168,9,170
+Donegal,O'Donnell,John,,6,0,0,6615,0,126,4735,6294,9,170
+Donegal,O'Donnell,John,,7,0,0,5953,0,662,4735,6956,9,170
+Donegal,O'Donnell,John,,8,0,0,5803,0,150,4735,7106,9,170
+Donegal,O'Donnell,John,Excluded,9,0,9,0,0,-7106,4735,0,9,170
+Donegal,Pringle,Thomas,,1,0,0,7437,0,0,5472,5472,9,172
+Donegal,Pringle,Thomas,,2,0,0,4639,0,2798,5472,8270,9,172
+Donegal,Pringle,Thomas,,3,0,0,4388,0,251,5472,8521,9,172
+Donegal,Pringle,Thomas,,4,0,0,4288,0,100,5472,8621,9,172
+Donegal,Pringle,Thomas,,5,0,0,3962,0,326,5472,8947,9,172
+Donegal,Pringle,Thomas,,6,0,0,3272,0,690,5472,9637,9,172
+Donegal,Pringle,Thomas,,7,0,0,2668,0,604,5472,10241,9,172
+Donegal,Pringle,Thomas,,8,0,0,2154,0,514,5472,10755,9,172
+Donegal,Pringle,Thomas,Elected,9,0,9,664,0,1490,5472,12245,9,172
+Donegal,Sweeney,Mary T.,,1,0,0,10527,846,0,2382,2382,9,173
+Donegal,Sweeney,Mary T.,,2,0,0,10082,401,445,2382,2827,9,173
+Donegal,Sweeney,Mary T.,,3,0,0,10002,321,80,2382,2907,9,173
+Donegal,Sweeney,Mary T.,,4,0,0,9781,100,221,2382,3128,9,173
+Donegal,Sweeney,Mary T.,,5,0,0,9560,0,221,2382,3349,9,173
+Donegal,Sweeney,Mary T.,,6,0,0,9309,0,251,2382,3600,9,173
+Donegal,Sweeney,Mary T.,Excluded,7,0,7,0,0,-3600,2382,0,9,173
+Donegal,Sweeney,Mary T.,Excluded,8,0,7,0,0,0,2382,0,9,173
+Donegal,Sweeney,Mary T.,Excluded,9,0,7,0,0,0,2382,0,9,173
+Donegal,White,Michael,,1,0,0,11253,1572,0,1656,1656,9,175
+Donegal,White,Michael,,2,0,0,10796,1115,457,1656,2113,9,175
+Donegal,White,Michael,,3,0,0,10715,1034,81,1656,2194,9,175
+Donegal,White,Michael,,4,0,0,10689,1008,26,1656,2220,9,175
+Donegal,White,Michael,,5,0,0,10570,889,119,1656,2339,9,175
+Donegal,White,Michael,Excluded,6,0,6,0,889,-2339,1656,0,9,175
+Donegal,White,Michael,Excluded,7,0,6,0,889,0,1656,0,9,175
+Donegal,White,Michael,Excluded,8,0,6,0,889,0,1656,0,9,175
+Donegal,White,Michael,Excluded,9,0,6,0,889,0,1656,0,9,175
