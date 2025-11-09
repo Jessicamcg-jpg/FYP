@@ -19,19 +19,13 @@ def graph_of_data(df):
         to_names = list(to_cands["Name"].values)
 
         #--add edge weights as the proportion of the src_cand's transfers the to_cand received.       
-        wgts = []
         src_wgts = list(src_cands["Transfers"].values)
         to_wgts = list(to_cands["Transfers"].values)
 
-        #--if there's more than one src_cand per count, measure the importance of the edge against the average of the src_cand's transfers
-        total=0
-        for src_wgt in src_wgts:
-            total+=src_wgt
-        total=np.abs(total)/len(src_wgts)
+        #--if there's more than one src_cand per count, the number of transfers a candidate receives will a proportion of the this total
+        total = np.abs(np.sum(src_wgts))
 
-        for i in range(len(to_wgts)):
-            proportion = to_wgts[i] / total
-            wgts.append(round(proportion,2))
+        wgts = [round(wgt/total, 2) for w in to_wgts]
             
         #--Create a weighted edge between each source candidate and each target candidate
         for i in range(len(src_names)):
