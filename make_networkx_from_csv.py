@@ -25,7 +25,7 @@ def graph_of_data(df):
         #--if there's more than one src_cand per count, the number of transfers a candidate receives will a proportion of the this total
         total = np.abs(np.sum(src_wgts))
 
-        wgts = [round(wgt/total, 2) for w in to_wgts]
+        wgts = [round(wgt/total, 2) for wgt in to_wgts]
             
         #--Create a weighted edge between each source candidate and each target candidate
         for i in range(len(src_names)):
