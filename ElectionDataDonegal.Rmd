@@ -177,6 +177,7 @@ total_nt <- sum(flow_comparison$Non_Transferable, na.rm = TRUE)
 print(paste("Total non-transferable:", total_nt))
 ```
 ```{r}
+#proportion of transfers/all transfers 139/941 1 or 2  per round 4th count election fraud maths models no of non-transfrables all c
 # 1. Sum all positive transfers in the raw data (what arrived)
 total_arrived <- GElection %>%
   filter(Transfers > 0) %>%
@@ -192,7 +193,7 @@ print(paste("Total in graph:", total_in_graph))
 ```{r}
  #realised there was duplicates in the count values
 g <- graph_from_data_frame(edges, vertices = nodes, directed = TRUE)
-g_filtered <- delete_edges(g, which(E(g)$Transfers < 100))
+g_filtered <- delete_edges(g, which(E(g)$Transfers < 500))
 
 plot(g_filtered,
      vertex.label = V(g_filtered)$name,
@@ -200,6 +201,15 @@ plot(g_filtered,
                     ifelse(V(g_filtered)$Status == "Excluded", "red", "grey60")),
      vertex.size = 8,
      edge.label = E(g_filtered)$Transfers,
+     edge.label.cex = 0.7,
+     edge.arrow.size = 0.5,
+     main = "Donegal GE 2024 - Vote Transfers")
+plot(g,
+     vertex.label = V(g)$name,
+     vertex.color = ifelse(V(g)$Status == "Elected", "darkgreen",
+                    ifelse(V(g)$Status == "Excluded", "red", "grey60")),
+     vertex.size = 8,
+     edge.label = E(g)$Transfers,
      edge.label.cex = 0.7,
      edge.arrow.size = 0.5,
      main = "Donegal GE 2024 - Vote Transfers")
@@ -347,43 +357,6 @@ edges_complete <- bind_rows(edges_main, edges_count2) %>%
 
 sum(edges_complete$Transfers)
 ```
-
-```{r}
-# Create graph with weights
-g <- graph_from_data_frame(edges_complete, vertices = nodes, directed = TRUE)
- 
-
-# Plot
-plot(g ,
-     vertex.label = paste(V(g)$`Candidate First Name`, 
-                          V(g)$`Candidate surname`),
-     vertex.color = ifelse(V(g)$Status == "Elected", "darkgreen",
-                    ifelse(V(g)$Status == "Excluded", "red", "grey60")),
-     vertex.size = 8,
-     edge.label = E(g_filtered)$Transfers,
-     edge.label.cex = 0.7,
-     edge.arrow.size = 0.5,
-     edge.width = E(g)$Transfers / 500,
-     main = "Donegal GE 2024 - Complete Transfer Network")
- 
-```
-```{r}
-# Create graph
-g <- graph_from_data_frame(edges, vertices = nodes, directed = TRUE)
-g_filtered <- delete_edges(g, which(E(g)$Transfers < 100))
-
-plot(g_filtered,
-     vertex.label = paste(V(g_filtered)$`Candidate First Name`, 
-                          V(g_filtered)$`Candidate surname`),
-     vertex.color = ifelse(V(g_filtered)$Status == "Elected", "darkgreen",
-                    ifelse(V(g_filtered)$Status == "Excluded", "red", "grey60")),
-     vertex.size = 8,
-     edge.label = E(g_filtered)$Transfers,
-     edge.label.cex = 0.7,
-     edge.arrow.size = 0.5,
-     edge.width = E(g_filtered)$Transfers / 500,
-     main = "Donegal GE 2024 - Complete Transfer Network")
-```
 ```{r}
 #better graph
 library(ggraph)
@@ -429,9 +402,11 @@ ggraph(g, layout = "fr") +
   ) +
   ggtitle("Vote Transfer Network 2020 – Donegal General Election") 
 ```
+
 ```{r}
+#looks at the communties before transfering
 library(igraph)
- ``
+ 
 g <- graph_from_data_frame(edges_complete, vertices = nodes, directed = TRUE)
 g_undir <- as.undirected(g, mode = "collapse", edge.attr.comb = "sum")
 
@@ -466,5 +441,228 @@ plot(lv, g,
      vertex.size = 8,
      main = "Donegal Communities")
 ```
- 
 
+```{r}
+#investigate weighting transfers by first count 
+candidate_totals <- GElection %>%
+  group_by(`Candidate Id`) %>%
+  summarise(
+    # Use Count 1 votes as baseline
+    count1_votes = `Total Votes`[`Count Number` == "1"][1]
+  ) %>%
+  filter(!is.na(count1_votes))
+
+cat("Candidates with Count 1 votes:\n")
+print(candidate_totals)
+```
+
+```{r}
+#normalised graphs by tranfers/the total votes from count 1, not as informative did /transfers after instead
+edges_normalised <- edges_complete %>%
+  left_join(candidate_totals, by = c("to" = "Candidate Id")) %>%
+  rename(to_total_votes = count1_votes) %>%
+  mutate(
+    # Avoid dividing by zero 
+    proportion_of_recipient = ifelse(!is.na(to_total_votes) & to_total_votes > 0,
+                                     Transfers / to_total_votes,
+                                     0),
+    # Store this as graph weight
+    weight = proportion_of_recipient
+  )
+g_norm <- graph_from_data_frame(
+  d = edges_normalised,
+  vertices = nodes,
+  directed = TRUE
+)
+# Also make an undirected graph
+g_norm_undirected <- as.undirected(g_norm, mode = "collapse")
+glimpse(edges_normalised)
+
+```
+```{r}
+#normalised graph
+plot(g_norm,
+     vertex.label = paste(V(g_norm)$`Candidate First Name`, 
+                          V(g_norm)$`Candidate surname`),
+     vertex.color = ifelse(V(g_norm)$Status == "Elected", "darkgreen",
+                    ifelse(V(g_norm)$Status == "Excluded", "red", "grey60")),
+     vertex.size = 8,
+     edge.width = E(g_norm)$weight ,       #normalised weights
+     edge.label = round(E(g_norm)$weight, 3),  # show proportional weight (rounded)
+     edge.label.cex = 0.7,
+     edge.arrow.size = 0.4,
+     main = "Donegal GE 2024 – Normalised Transfer Network by proportion of transfers" 
+)
+```
+```{r}
+g_norm_filtered <- delete_edges(g_norm, which(E(g_norm)$weight < 0.05))
+plot(g_norm_filtered,
+     vertex.label = paste(V(g_norm_filtered)$`Candidate First Name`,
+                          V(g_norm_filtered)$`Candidate surname`),
+     vertex.color = ifelse(V(g_norm_filtered)$Status == "Elected", "darkgreen",
+                           ifelse(V(g_norm_filtered)$Status == "Excluded", "red", "grey60")),
+     vertex.size = 8,
+     edge.width = E(g_norm_filtered)$weight , 
+     edge.label = round(E(g_norm_filtered)$weight, 3),
+     edge.label.cex = 0.7,
+     edge.arrow.size = 0.4,
+     main = "Donegal GE 2024 – Filtered Normalised Transfer Network")
+```
+
+```{r}
+library(igraph)
+ 
+g_norm <- graph_from_data_frame(
+  d = edges_normalised,
+  vertices = nodes,
+  directed = TRUE)
+g_norm_undirected <- as.undirected(g_norm, mode = "collapse")
+
+
+# 1. Walktrap (undirected)
+wt <- cluster_walktrap(g_norm_undirected)
+cat("1. WALKTRAP\n")
+cat("Communities:", length(wt), "\n")
+cat("Modularity:", modularity(wt), "\n")
+print(membership(wt))
+cat("\n")
+
+# 2. Infomap (directed - best for flow networks)
+im <- cluster_infomap(g_norm)
+cat("2. INFOMAP\n")
+cat("Communities:", length(im), "\n")
+print(membership(im))
+cat("\n")
+
+# 3. Louvain (undirected)
+lv <- cluster_louvain(g_norm_undirected)
+cat("3. LOUVAIN\n")
+cat("Communities:", length(lv), "\n")
+cat("Modularity:", modularity(lv), "\n")
+print(membership(lv))
+cat("\n")
+
+# Visualize  
+plot(lv, g,
+     vertex.label = paste(V(g_norm)$`Candidate First Name`, 
+                          V(g_norm)$`Candidate surname`),
+     vertex.size = 8,
+     main = "Donegal Communities")
+```
+```{r}
+#This is with differnt weighting instead of with the first count weighted by recipients transfers
+recipient_totals <- edges_complete %>%
+  group_by(to) %>%
+  summarise(
+    total_received = sum(Transfers, na.rm = TRUE),
+    n_senders = n()  # How many candidates transferred to this one
+  )
+edges_normalised_recipient <- edges_complete %>%
+  left_join(recipient_totals, by = "to") %>%
+  mutate(
+    # Proportion of this recipient's total that came from this sender
+    proportion_of_recipient = ifelse(!is.na(total_received) & total_received > 0,
+                                     Transfers / total_received,
+                                     0),
+    weight = proportion_of_recipient
+  )
+```
+
+````{r}
+g_recipient_directed <- edges_normalised_recipient %>%
+  select(from, to, weight) %>%
+  graph_from_data_frame(vertices = nodes, directed = TRUE)
+
+
+g_recipient_undirected <- as.undirected(g_recipient_directed, mode = "collapse")
+
+
+louvain_recipient <- cluster_louvain(g_recipient_undirected, 
+                                     weights = E(g_recipient_undirected)$weight)
+
+# Walktrap
+walktrap_recipient <- cluster_walktrap(g_recipient_undirected, 
+                                       weights = E(g_recipient_undirected)$weight, 
+                                       steps = 4)
+
+# Infomap (uses directed graph)
+infomap_recipient <- cluster_infomap(g_recipient_directed, 
+                                     e.weights = E(g_recipient_directed)$weight)
+community_assignments <- nodes %>%
+  mutate(
+    louvain_community = membership(louvain_recipient)[match(`Candidate Id`, V(g_recipient_undirected)$name)],
+    walktrap_community = membership(walktrap_recipient)[match(`Candidate Id`, V(g_recipient_undirected)$name)],
+    infomap_community = membership(infomap_recipient)[match(`Candidate Id`, V(g_recipient_directed)$name)]
+  )
+louvain_summary <- community_assignments %>%
+  group_by(louvain_community) %>%
+  summarise(
+    n_members = n(),
+    members = paste(name, collapse = ", ")
+  ) %>%
+  arrange(desc(n_members))
+
+print(louvain_summary)
+
+walktrap_summary <- community_assignments %>%
+  group_by(walktrap_community) %>%
+  summarise(
+    n_members = n(),
+    members = paste(name, collapse = ", ")
+  ) %>%
+  arrange(desc(n_members))
+
+print(walktrap_summary)
+
+infomap_summary <- community_assignments %>%
+  group_by(infomap_community) %>%
+  summarise(
+    n_members = n(),
+    members = paste(name, collapse = ", ")
+  ) %>%
+  arrange(desc(n_members))
+
+print(infomap_summary)
+
+````
+
+```{r}
+plot(g_recipient_undirected,
+     vertex.label = paste(V(g_norm)$`Candidate First Name`, 
+                          V(g_norm)$`Candidate surname`),
+     vertex.color = ifelse(V(g_norm)$Status == "Elected", "darkgreen",
+                    ifelse(V(g_norm)$Status == "Excluded", "red", "grey60")),
+     vertex.size = 8,
+     edge.width = E(g_norm)$weight ,       #normalised weights
+     edge.label = round(E(g_norm)$weight, 3),  # show proportional weight (rounded)
+     edge.label.cex = 0.7,
+     edge.arrow.size = 0.4,
+     main = "Donegal GE 2024 – Normalised Transfer Network by recipent strength" )
+     
+plot(louvain_recipient, g_recipient_undirected,
+     vertex.label = paste(V(g_recipient_undirected)$`Candidate First Name`, 
+                          V(g_recipient_undirected)$`Candidate surname`),
+     vertex.size = 8,
+     vertex.label.cex = 0.7,
+     edge.width = E(g_recipient_undirected)$weight ,
+     main = "Donegal Communities (Louvain)")
+```
+
+
+```{r}
+# Create graph
+g <- graph_from_data_frame(edges, vertices = nodes, directed = TRUE)
+g_filtered <- delete_edges(g, which(E(g)$Transfers < 100))
+
+plot(g_filtered,
+     vertex.label = paste(V(g_filtered)$`Candidate First Name`, 
+                          V(g_filtered)$`Candidate surname`),
+     vertex.color = ifelse(V(g_filtered)$Status == "Elected", "darkgreen",
+                    ifelse(V(g_filtered)$Status == "Excluded", "red", "grey60")),
+     vertex.size = 8,
+     edge.label = E(g_filtered)$Transfers,
+     edge.label.cex = 0.7,
+     edge.arrow.size = 0.5,
+     edge.width = E(g_filtered)$Transfers / 500,
+     main = "Donegal GE 2024 - Complete Transfer Network")
+```
