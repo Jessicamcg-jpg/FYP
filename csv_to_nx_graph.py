@@ -65,13 +65,15 @@ def plot_G(G):
     plt.show()
 
 #--IMPLEMENTATION
-donegal_df = pd.read_csv("General_Election_Donegal.csv")
+constituency = "Dublin Bay South"
+constituency_df = full_df.loc[full_df["Constituency Name"]==constituency]
 
-G = graph_of_data(donegal_df)
+G = graph_of_data(constituency_df)
 plot_G(G)
 
 communities = nx.community.louvain_communities(G)
-print("Communities produced by Louvain algorithm for Donegal:\n")
+print(f"Communities produced by Louvain algorithm for {constituency}:\n")
 for c in communities:
     print(f"{c}\n")
-nx.community.modularity(G2, communities)
+    
+nx.community.modularity(G, communities)
