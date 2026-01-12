@@ -1,3 +1,8 @@
+import pandas as pd
+import networkx as nx
+import numpy as np
+import matplotlib.pyplot as plt
+
 def graph_of_data(df):
     """
     Input: an election dataframe for a constitutency.
@@ -58,3 +63,15 @@ def plot_G(G):
     
     plt.title("Graph of Transfers between Candidates")
     plt.show()
+
+#--IMPLEMENTATION
+donegal_df = pd.read_csv("General_Election_Donegal.csv")
+
+G = graph_of_data(donegal_df)
+plot_G(G)
+
+communities = nx.community.louvain_communities(G)
+print("Communities produced by Louvain algorithm for Donegal:\n")
+for c in communities:
+    print(f"{c}\n")
+nx.community.modularity(G2, communities)
