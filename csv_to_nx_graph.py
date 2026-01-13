@@ -65,6 +65,8 @@ def plot_G(G):
     plt.show()
 
 #--IMPLEMENTATION
+full_df = pd.read_csv("General_Election_2020_full.csv")
+
 constituency = "Dublin Bay South"
 constituency_df = full_df.loc[full_df["Constituency Name"]==constituency]
 
