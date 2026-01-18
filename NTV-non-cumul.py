@@ -1,5 +1,7 @@
 def all_counts_bar_chart(ct_lst, vals_lst):
-    
+    """
+    Prints a plt bar chart with labels above each bar.
+    """
     plt.figure(figsize=(10, 5))
     
     bars = plt.bar(ct_lst, vals_lst, color='skyblue',width=0.4,align = "center")
@@ -18,6 +20,13 @@ def all_counts_bar_chart(ct_lst, vals_lst):
     plt.show()
   
 def non_cumul_propn_per_count(df):
+
+    """
+    Calculates the proportion of non-transferable votes at each count by pooling the non-transferable votes and valid votes of each active constituency at that count 
+    and calculating the pooled NTVs as a proportion of the pooled valid poll.
+    Iteratively filters the full election CSV by count; sums over the "Valid Poll" column and "Transfers" column.
+    """
+    
     propn_lst = []
     for count in range(1,16):
         
