@@ -1,3 +1,5 @@
+full_df = pd.read_csv("General_Election_2020_full.csv")
+
 consti_list = list(full_df["Constituency Name"].unique())
 #print(consti_list)
 modularity_list = []
