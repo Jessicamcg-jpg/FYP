@@ -1,0 +1,1052 @@
+---
+title: "Alaphabet"
+author: "Jessica McGreevy"
+date: "2025-11-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyverse)
+library(stringi)
+ 
+GE_full_Election <- read_csv("C:\\Users\\lilly\\Downloads\\General_Election_2020_count.csv")
+
+nodes <- GE_full_Election %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes.csv")
+
+
+ # Get first preferences for the election
+FullElection <- GE_full_Election %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>%
+    
+  mutate(Surname_Initial = toupper(substr(`Candidate surname`, 1, 1)))
+  total_candidates <- nrow(nodes)
+#  Summarise by surname initial
+full_summarise <- FullElection %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    #Candidates = n(),
+    Avg_First_Pref = Total_First_Pref / total_candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  mutate(Normalised_FirstPref = Avg_First_Pref / nrow(FullElection)) %>%
+  arrange(Surname_Initial)
+  print(full_summarise)
+  write_csv(full_summarise, "surname_initial_results1.csv")
+
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "red") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+ 
+ nrow(FullElection)
+ #number of first prefreances 
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+#want to change the code to get the full election data
+GE_full_Election <- read_csv("C:\\Users\\lilly\\Downloads\\General_Election_2020_count.csv")
+
+nodes <- GE_full_Election %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes.csv")
+
+
+ # Get first preferences for the election
+FullElection <- GE_full_Election %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>% for Donegal data
+   
+  mutate(Surname_Initial = toupper(substr(`Candidate surname`, 1, 1)))
+ 
+#  Summarise by surname initial
+full_summarise2 <- FullElection %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    Candidates = n(),
+    
+    Avg_First_Pref = Total_First_Pref / Candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  rename(Normalised_FirstPref = Avg_First_Pref) %>%
+  arrange(Surname_Initial)
+  print(full_summarise2)
+  write_csv(full_summarise2, "surname_initial_results2.csv")
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise2, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "blue") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+#gives doherty as he had the highest number of votes
+ 
+ nrow(FullElection)
+ 
+  
+```
+
+```{r}
+#had to update the encoding of the document to read the Ó then change sub string to stri_sub in order to handle the fada and other initials it is found in the correct order
+#install.packages("stringi")
+library(stringi)
+GE_full_Election_O <- read_csv("C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",locale = locale(encoding = "WINDOWS-1252"))
+nodes <- GE_full_Election_O %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes2.csv")
+
+
+ # Get first preferences for the election
+FullElection_O <- GE_full_Election_O %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>% for Donegal data
+  mutate(
+    Surname_Initial = toupper(stri_sub(`Candidate surname`, 1, 1))
+  )
+  
+ 
+#  Summarise by surname initial
+full_summarise2 <- FullElection_O %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    Candidates = n(),
+    Avg_First_Pref = Total_First_Pref / Candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  rename(Normalised_FirstPref = Avg_First_Pref) %>%
+  arrange(Surname_Initial)
+  print(full_summarise2)
+  write_csv(full_summarise2, "surname_initial_results2.csv")
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise2, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "blue") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+#gives doherty as he had the highest number of votes
+ 
+ nrow(FullElection)
+```
+
+```{r}
+ 
+
+Initial.df <- read_csv("C:\\Users\\lilly\\Documents\\Surname_initals_cleaned.csv")
+print(Initial.df)
+Initial.df$Initial_Rank <- match(Initial.df$Surname_Initial, LETTERS) #converts letters to numbers compares rank 
+spearman_result <- cor.test(
+  Initial.df$Initial_Rank,
+  Initial.df$Normalised_FirstPref,
+  method = "spearman"
+)
+
+spearman_result
+library(ggplot2)
+
+ggplot(Initial.df, aes(x = Initial_Rank, y = Normalised_FirstPref)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Alphabet Rank vs Normalised First-Preference Votes",
+    x = "Alphabet Position (A=1, Z=26)",
+    y = "Normalised First Pref (per candidate)"
+  ) +
+  theme_minimal()
+kruskal.test(Normalised_FirstPref ~ Surname_Initial, data = Initial.df)
+
+#S is equal to test statistic, initally negatively corr
+```
+
+```{r}
+#used as away to see how often first initial occured workswith O fada next goal split mc and m as m big dataset 
+candidates_M <- GE_full_Election_O %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  filter(toupper(stri_sub(`Candidate surname`, 1, 1)) == "T")
+
+print(candidates_M) #theres 78
+```
+
+```{r}
+GE_full_Election_OandM <- read_csv("C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",locale = locale(encoding = "WINDOWS-1252"))
+nodes <- GE_full_Election_O %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes2.csv")
+
+
+ # Get first preferences for the election
+FullElection_OandM <- GE_full_Election_OandM %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>% for Donegal data
+  mutate(
+    CleanSurname = str_trim(`Candidate surname`),
+     Surname_Initial = case_when(
+      # Detect Mc (case insensitive) and classify as "Mc"
+      str_detect(CleanSurname, regex("^Mc", ignore_case = TRUE)) ~ "Mc",
+
+      # Otherwise keeping fadas 
+      TRUE ~ toupper(stri_sub(`Candidate surname`, 1, 1)),)
+    )
+     
+  
+  #want to add an or mc here 
+ 
+#  Summarise by surname initial
+full_summarise2 <- FullElection_OandM %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    Candidates = n(),
+    Avg_First_Pref = Total_First_Pref / Candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  rename(Normalised_FirstPref = Avg_First_Pref) %>%
+  arrange(Surname_Initial)
+  print(full_summarise2)
+  write_csv(full_summarise2, "surname_initial_results2.csv")
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise2, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "blue") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+#gives doherty as he had the highest number of votes
+ 
+ nrow(FullElection)
+```
+
+```{r}
+Initial.df <- read_csv("C:\\Users\\lilly\\Documents\\Surname_initals_cleaned.csv") #had to create new file with just initial and normalisation with Ofada ordered correctly
+all_initials <- c(LETTERS, "Mc") #had to rename in order to include first letter and mc
+print(Initial.df)
+Initial.df$Initial_Rank <- match(Initial.df$Surname_Initial, all_initials) #converts letters to numbers compares rank 
+spearman_result <- cor.test(
+  Initial.df$Initial_Rank,
+  Initial.df$Normalised_FirstPref,
+  method = "spearman"
+)
+
+spearman_result
+library(ggplot2)
+
+ggplot(Initial.df, aes(x = Initial_Rank, y = Normalised_FirstPref)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Alphabet Rank vs Normalised First-Preference Votes",
+    x = "Alphabet Position (A=1, Z=26)",
+    y = "Normalised First Pref (per candidate)"
+  ) +
+  theme_minimal()
+kruskal.test(Normalised_FirstPref ~ Surname_Initial, data = Initial.df)
+
+```
+
+```{r}
+#used to see the length of the consitencys
+GE_full_Election <- read_csv("C:\\Users\\lilly\\Downloads\\General_Election_2020_count.csv")
+
+library(dplyr)
+
+candidate_counts <- GE_full_Election %>%
+  group_by(`Constituency Name`) %>%
+  summarise(
+    Num_Candidates = n_distinct(`Candidate Id`)
+  ) %>%
+  arrange(Num_Candidates)
+
+print(candidate_counts)
+```
+
+ 
+
+```{r}
+# Meath_w 9 candidates
+Meath_w<- read.csv("C:\\Users\\lilly\\Documents\\Meath_W.csv",fileEncoding = "Latin1"
+) #to stop error of the fadas not being read properly
+Meath_w
+total_candidates <- Meath_w %>%
+  filter(`Count.Number` == 1) %>%
+  distinct(`Candidate.Id`) %>%
+  nrow()
+total_candidates
+# First preference data
+FullElection1 <- Meath_w %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`,
+           `Candidate.First.Name`,
+           `Candidate.surname`,
+            ) %>%     
+  summarise(
+    First_Preferences = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Candidate.Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+  ) %>%
+  arrange(`Candidate.surname`) %>%   # <- order by surname
+  mutate(
+    Candidate_Name = factor(Candidate.Name, levels = Candidate.Name),  # <- ordered factor
+    Normalised_FP = First_Preferences / total_candidates
+  )
+
+# Plot: Candidate names on X-axis, normalised vote on Y
+ggplot(FullElection1,
+       aes(x =(Candidate.Name),
+           y = Normalised_FP)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Normalised_FP, 3)),
+            vjust = -0.3, size = 3) +
+  labs(
+    title = "Normalised First Preferences by Candidate",
+    x = "Candidate Name",
+    y = "Normalised First Preference Vote"
+  ) +
+  theme_minimal() 
+  theme(axis_text_x = element_text(angle = 60, hjust = 1))
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Wicklow 20 candidates
+Wicklow<- read.csv("C:\\Users\\lilly\\Documents\\Wicklow.csv",fileEncoding = "Latin1"
+)
+
+total_candidates <- Wicklow %>%
+  filter(`Count.Number` == 1) %>%
+  distinct(`Candidate.Id`) %>%
+  nrow()
+
+# First preference data
+FullElection <- Wicklow %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`,
+           `Candidate.First.Name`,
+           `Candidate.surname`,
+            ) %>%     
+  summarise(
+    First_Preferences = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Candidate_Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+  ) %>%
+  arrange(`Candidate.surname`) %>%   # <- order by surname
+  mutate(
+    Candidate_Name = factor(Candidate_Name, levels = Candidate_Name),  # <- ordered factor
+    Normalised_FP = First_Preferences / total_candidates
+  )
+
+# Plot: Candidate names on X-axis, normalised vote on Y
+ggplot(FullElection,
+       aes(x =(Candidate_Name),
+           y = Normalised_FP)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Normalised_FP, 3)),
+            vjust = -0.3, size = 3) +
+  labs(
+    title = "Normalised First Preferences by Candidate",
+    x = "Candidate Name",
+    y = "Normalised First Preference Vote"
+  ) +
+  theme_minimal()   +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+```{r}
+#Spearman code
+Meath_w_corr <- Meath_w %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`, `Candidate.surname`) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  arrange(`Candidate.surname`) %>%
+  mutate(Surname_Rank = row_number())
+
+cor.test(Meath_w_corr$Surname_Rank, 
+         Meath_w_corr$First_Pref,
+         method = "spearman")
+
+```
+
+```{r}
+Wicklow_corr <- Wicklow %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`, `Candidate.surname`) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  arrange(`Candidate.surname`) %>%
+  mutate(Surname_Rank = row_number())
+
+cor.test(Wicklow_corr$Surname_Rank, 
+         Wicklow_corr$First_Pref,
+         method = "spearman")
+```
+
+Across the full general election dataset, candidates with surnames earlier in the alphabet received significantly higher normalised first-preference votes. The relationship is moderate  in size and statistically significant (ρ = –0.495, p = 0.015). But localised by 2 contitencys meath wicklow not signficant.
+
+```{r}
+ 
+
+# Count total candidates
+GalwayW <- read.csv("C:\\Users\\lilly\\Documents\\csv_election_data\\General_Election_GalwayWest.csv")
+total_candidates <- GalwayW %>%
+  filter(`Count.Number` == 1) %>%
+  distinct(`Candidate.Id`) %>%
+  nrow()
+
+# First preference data
+FullElection <- GalwayW %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`,
+           `Candidate.First.Name`,
+           `Candidate.surname`,
+            ) %>%     
+  summarise(
+    First_Preferences = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Candidate_Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+  ) %>%
+  arrange(`Candidate.surname`) %>%   # <- order by surname
+  mutate(
+    Candidate_Name = factor(Candidate_Name, levels = Candidate_Name),  # <- ordered factor
+    Normalised_FP = First_Preferences / total_candidates
+  )
+
+# Plot: Candidate names on X-axis, normalised vote on Y
+ggplot(FullElection,
+       aes(x =(Candidate_Name),
+           y = Normalised_FP)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Normalised_FP, 3)),
+            vjust = -0.3, size = 3) +
+  labs(
+    title = "Normalised First Preferences by Candidate",
+    x = "Candidate Name",
+    y = "Normalised First Preference Vote"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+```{r}
+GalwayW_corr <- GalwayW %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`, `Candidate.surname`) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  arrange(`Candidate.surname`) %>%
+  mutate(Surname_Rank = row_number())
+
+cor.test(GalwayW_corr$Surname_Rank, 
+         GalwayW_corr$First_Pref,
+         method = "kendall")
+```
+```{r}
+ 
+# Read file as Latin1, no factors way to figue out the fada encoding issue
+GE_full_Election <- read.csv(
+  "C:\\Users\\lilly\\Documents\\2020-05-27_general-election-2020-countdetails-csv_en.csv",
+  fileEncoding = "Latin1",
+  stringsAsFactors = FALSE
+)
+
+# Force Candidate.surname to character and UTF-8
+GE_full_Election$Candidate.surname <- as.character(GE_full_Election$Candidate.surname)
+GE_full_Election$Candidate.surname <- stri_encode(GE_full_Election$Candidate.surname, from = "latin1", to = "UTF-8")
+
+
+stri_sort_key(GE_full_Election$Candidate.surname[1:10], locale = "en")
+
+```
+ 
+
+```{r}
+
+ 
+library(dplyr)
+library(ggplot2)
+library(stringi)
+library(readr)
+ 
+GE_full_Election <- read_csv(
+  "C:\\Users\\lilly\\Documents\\2020-05-27_general-election-2020-countdetails-csv_en.csv",
+  locale = locale(encoding = "Latin1")
+)
+
+# Rename columns for convenience
+GE_full_Election <- GE_full_Election %>%
+  rename(
+    Candidate_surname = `Candidate surname`,
+    Candidate_First_Name = `Candidate First Name`,
+    Count_Number = `Count Number`,
+    Candidate_Id = `Candidate Id`,
+    Constituency_Name = `Constituency Name`
+  ) %>%
+  mutate(
+    Candidate_surname = as.character(Candidate_surname),
+    Candidate_First_Name = as.character(Candidate_First_Name),
+    # Encode to UTF-8 safely; invalid bytes replaced
+    Candidate_surname = stri_enc_toutf8(Candidate_surname, is_unknown_8bit = TRUE),
+    Candidate_First_Name = stri_enc_toutf8(Candidate_First_Name, is_unknown_8bit = TRUE)
+  )
+
+# Unique constituencies
+constituencies <- unique(GE_full_Election$Constituency_Name)
+ 
+for (const in constituencies) {
+  
+  data_const <- GE_full_Election %>% filter(Constituency_Name == const)
+  
+  total_candidates <- data_const %>%
+    filter(Count_Number == 1) %>%
+    distinct(Candidate_Id) %>% nrow()
+  
+  FullElection <- data_const %>%
+    filter(Count_Number == 1) %>%
+    group_by(Candidate_Id, Candidate_First_Name, Candidate_surname) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+    # Normalise Mc to MAC~ for ballot-style ordering
+    # First remove any spaces after Mc, then convert
+    surname_norm = ifelse(
+      stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE),
+      stringi::stri_replace_first_regex(Candidate_surname, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+      Candidate_surname
+    ),
+      firstname_norm = Candidate_First_Name,
+      # ASCII-safe key for surname sorting with uppercase for consistency
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(firstname_norm, "Latin-ASCII")),
+      Candidate_Name = paste(Candidate_First_Name, Candidate_surname),
+      # Fully safe plotting label
+      Candidate_Name_plot = stri_replace_all_regex(
+        stri_trans_general(Candidate_Name, "Latin-ASCII"),
+        "[^[:alnum:]' -]", "?"
+      )
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, Candidate_Id) %>%
+    mutate(
+      Candidate_Name_factor = factor(Candidate_Name, levels = Candidate_Name),
+      Normalised_FP = First_Preferences / total_candidates
+    )
+  
+  # Plot
+  p <- ggplot(FullElection, aes(x = Candidate_Name_factor, y = Normalised_FP)) +
+    geom_col(fill = "darkgreen") +
+    geom_text(aes(label = round(Normalised_FP, 3)), vjust = -0.3, size = 3) +
+    labs(
+      title = paste("Normalised First Preferences –", const),
+      x = "Candidate Name",
+      y = "Normalised First Preference Vote"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  
+  print(p)
+}
+```
+
+```{r}
+#kildare north 
+library(dplyr)
+constituencies <- unique(GE_full_Election$Constituency_Name)
+
+cor_results <- list()
+
+for (const in constituencies) {
+
+  data_const <- GE_full_Election %>%
+    filter(
+      Constituency_Name == const,
+      `Count_Number` == 1
+    )
+
+  
+  corr_data <- data_const %>%
+    group_by(`Candidate_Id`, `Candidate_surname`) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(`Candidate_surname`) %>%
+    mutate(Surname_Rank = row_number())
+
+  test <- cor.test(
+    corr_data$Surname_Rank,
+    corr_data$First_Pref,
+    method = "spearman"
+  )
+
+  cor_results[[const]] <- data.frame(
+    Constituency = const,
+    Spearman_rho = unname(test$estimate),
+    p_value = test$p.value
+  )
+}
+cor_results_df <- bind_rows(cor_results)
+cor_results_df
+```
+
+```{r}
+constituencies <- unique(GE_full_Election$Constituency_Name)
+cor_results <- list()
+
+for (const in constituencies) {
+
+  data_const <- GE_full_Election %>%
+    filter(
+      Constituency_Name == const,
+      Count_Number == 1
+    )
+
+  # Summarise first-preference votes
+  corr_data <- data_const %>%
+    group_by(Candidate_Id, Candidate_surname, Candidate_First_Name) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    # Safe alphabetical key for ranking
+   mutate(
+      
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(Candidate_surname, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        Candidate_surname
+      ),
+      
+      surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_key = toupper(stri_trans_general(Candidate_First_Name, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_key, firstname_key) %>% 
+    mutate(Surname_Rank = row_number())
+
+  # Spearman correlation
+  if(nrow(corr_data) > 1){  
+    test <- cor.test(
+      corr_data$Surname_Rank,
+      corr_data$First_Pref,
+      method = "spearman"
+    )
+
+    cor_results[[const]] <- data.frame(
+      Constituency = const,
+      Spearman_rho = unname(test$estimate),
+      p_value = test$p.value
+    )
+  } else {
+    cor_results[[const]] <- data.frame(
+      Constituency = const,
+      Spearman_rho = NA,
+      p_value = NA
+    )
+  }
+}
+
+cor_results_df <- bind_rows(cor_results)
+cor_results_df
+
+```
+
+
+```{r}
+summary_rho <- cor_results_df %>%
+  summarise(
+    Mean_spearman =mean(Spearman_rho),
+    SD_spearman =sd(Spearman_rho),
+    N=n()
+  )
+summary_rho
+```
+ 
+
+```{r}
+ggplot(cor_results_df, aes(x = Spearman_rho)) +
+  geom_histogram(bins = 15, fill = "darkgreen") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Distribution of Alphabetical Effects by Constituency",
+    x = "Spearman rho",
+    y = "Number of Constituencies"
+  ) +
+  theme_minimal()
+```
+```{r}
+model <- lm(First_Pref ~ Surname_Rank, data = corr_data)
+ 
+summary(model)
+```
+
+```{r}
+ols_results <- list()
+
+for (const in constituencies) {
+
+  corr_data <- GE_full_Election %>%
+    filter(
+      Constituency_Name == const,
+      Count_Number == 1
+    ) %>%
+    group_by(Candidate_Id, Candidate_surname) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(Candidate_surname) %>%
+    mutate(Surname_Rank = row_number())
+    corr_data %>%
+    select(Candidate_surname, Surname_Rank)
+
+  model <- lm(First_Pref ~ Surname_Rank, data = corr_data)
+
+  ols_results[[const]] <- data.frame(
+    Constituency = const,
+    Beta = coef(model)[["Surname_Rank"]],
+    p_value = summary(model)$coefficients["Surname_Rank", "Pr(>|t|)"],
+    N = nrow(corr_data)
+  )
+}
+ols_results_df <- bind_rows(ols_results)
+ols_results_df
+summary(ols_results_df$Beta)
+```
+
+
+```{r}
+library(dplyr)
+
+ols_results <- list()
+
+for (const in constituencies) {
+  corr_data <- GE_full_Election %>%
+    filter(
+      Constituency_Name == const,
+      Count_Number == 1
+    ) %>%
+    group_by(Candidate_Id, Candidate_surname, Candidate_First_Name) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+       
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(Candidate_surname, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        Candidate_surname
+      ),
+      # Convert to uppercase for consistent sorting
+      surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_key = toupper(stri_trans_general(Candidate_First_Name, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_key, firstname_key) %>%
+    mutate(Surname_Rank = row_number())
+  
+   
+  
+  # OLS regression
+  model <- lm(First_Pref ~ Surname_Rank, data = corr_data)
+  
+  ols_results[[const]] <- data.frame(
+    Constituency = const,
+    Beta = coef(model)[["Surname_Rank"]],
+    p_value = summary(model)$coefficients["Surname_Rank", "Pr(>|t|)"],
+    N = nrow(corr_data)
+  )
+}
+
+ols_results_df <- bind_rows(ols_results)
+ols_results_df
+summary(ols_results_df$Beta)
+```
+
+
+```{r}
+ols_results_df %>%
+  summarise(
+    Mean_Beta = mean(Beta, na.rm = TRUE),
+    SD = sd(Beta, na.rm = TRUE),
+    N = n()
+  )
+```
+ The OLS estimates reinforce the rank-based findings. Across constituencies, the average regression coefficient indicates that moving one position later on the alphabetical ballot is associated with a reduction of approximately 106 first-preference votes.  (now 104 with update mc and mac sorted )
+ Although the amount of this effect varies substantially across constituencies, its direction is consistent with the negative mean Spearman correlation (ρ = −0.13). Taken together, the Spearman and OLS results suggest that alphabetical ordering has a small effect. 
+
+
+```{r}
+library(dplyr)
+library(stringi)
+GE_full_Election <- read_csv(
+  "C:\\Users\\lilly\\Documents\\2020-05-27_general-election-2020-countdetails-csv_en.csv",
+  locale = locale(encoding = "Latin1")
+)
+
+GE_full_Election <- GE_full_Election %>%
+  rename(
+    Candidate_surname = `Candidate surname`,
+    Candidate_First_Name = `Candidate First Name`,
+    Count_Number = `Count Number`,
+    Candidate_Id = `Candidate Id`,
+    Constituency_Name = `Constituency Name`
+  )
+
+# Constituency list
+constituencies <- unique(GE_full_Election$Constituency_Name)
+
+results_top9 <- list()
+ 
+for (const in constituencies) {
+
+  ballot_data <- GE_full_Election %>%
+    
+  filter(
+    Constituency_Name == const,
+  ) %>%
+    group_by(Candidate_Id, Candidate_surname, Candidate_First_Name) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(Candidate_surname, "^Mc", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(Candidate_surname, "^Mc", "MAC~", case_insensitive = TRUE),
+        Candidate_surname
+      ),
+      
+      surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_key = toupper(stri_trans_general(Candidate_First_Name, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_key, firstname_key) %>%
+    mutate(
+      Ballot_Position = row_number()
+    ) %>%
+    # Restrict to top 9
+    filter(Ballot_Position <= 9)
+
+  # Spearman example
+  test <- cor.test(
+    ballot_data$Ballot_Position,
+    ballot_data$First_Pref,
+    method = "spearman"
+  )
+
+  results_top9[[const]] <- data.frame(
+    Constituency = const,
+    Spearman_rho = unname(test$estimate),
+    p_value = test$p.value,
+    N = nrow(ballot_data)
+  )
+}
+
+results_top9_df <- bind_rows(results_top9)
+results_top9_df
+
+
+
+```
+```{r}
+summary_rho2 <- results_top9_df %>%
+  summarise(
+    Mean_spearman =mean(Spearman_rho),
+    SD_spearman =sd(Spearman_rho),
+    N=n()
+  )
+summary_rho2 
+```
+Spearman row actully decreases less of a pattern but in the ols regression increases in votes 
+
+```{r}
+Check Ó fada sorting
+GE_full_Election %>%
+  filter(
+    Constituency_Name == "Kildare North",
+    Count_Number == 1
+  ) %>%
+  group_by(Candidate_Id, Candidate_surname, Candidate_First_Name) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  mutate(
+    surname_key = stri_trans_general(Candidate_surname, "Latin-ASCII"),
+    firstname_key = stri_trans_general(Candidate_First_Name, "Latin-ASCII")
+  ) %>%
+  arrange(surname_key, firstname_key) %>%
+  mutate(Ballot_Position = row_number()) %>%
+  select(Ballot_Position, Candidate_surname, Candidate_First_Name)
+```
+
+```{r}
+#This was to check if the candidates were actully being sorted alphabetically
+
+
+ballot_check <- GE_full_Election %>%
+  filter(Count_Number == 1) %>%
+  group_by(
+    Constituency_Name,
+    Candidate_Id,
+    Candidate_surname,
+    Candidate_First_Name
+  ) %>%
+  summarise(
+    First_Pref = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+mutate(
+    # Normalise Mc to MAC~ for ballot-style ordering
+    # Tilde (~) sorts after letters, ensuring original MAC surnames sort before converted MC
+    surname_norm = ifelse(
+      stringi::stri_detect_regex(Candidate_surname, "^Mc", case_insensitive = TRUE),
+      stringi::stri_replace_first_regex(Candidate_surname, "^Mc", "MAC~", case_insensitive = TRUE),
+      Candidate_surname
+    ),
+    # Convert to uppercase for consistent sorting
+    surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+    firstname_key = toupper(stri_trans_general(Candidate_First_Name, "Latin-ASCII"))
+  ) %>%
+  arrange(
+    Constituency_Name,
+    surname_key,
+    firstname_key
+  ) %>%
+  group_by(Constituency_Name) %>%
+  mutate(
+    Ballot_Position = row_number(),
+    Total_Candidates = n()
+  ) %>%
+  ungroup()
+
+# Write to CSV for manual checking
+write_csv(
+  ballot_check,
+  "ballot_order_sanity_check_all_constituencies2.csv"
+)
+
+```
+
+
+```{r}
+#OLS for top 9 candidates ballot order
+ols_results <- list()
+
+for (const in constituencies) {
+  corr_data <- GE_full_Election %>%
+    filter(
+      Constituency_Name == const,
+      Count_Number == 1
+    ) %>%
+    group_by(Candidate_Id, Candidate_surname) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+ 
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(Candidate_surname, "^Mc", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(Candidate_surname, "^Mc", "MAC~", case_insensitive = TRUE),
+        Candidate_surname
+      ),
+     
+      surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_key) %>%
+    mutate(Surname_Rank = row_number()) %>%
+  
+    filter(Surname_Rank <= 9)
+  
+  
+  
+  model <- lm(First_Pref ~ Surname_Rank, data = corr_data)
+  
+  ols_results[[const]] <- data.frame(
+    Constituency = const,
+    Beta = coef(model)[["Surname_Rank"]],
+    p_value = summary(model)$coefficients["Surname_Rank", "Pr(>|t|)"],
+    N = nrow(corr_data)
+  )
+}
+
+ols_results2_df <- bind_rows(ols_results)
+ols_results2_df
+summary(ols_results2_df$Beta)
+```
+
+```{r}
+ols_results2_df %>%
+  summarise(
+    Mean_Beta = mean(Beta, na.rm = TRUE),
+    SD = sd(Beta, na.rm = TRUE),
+    N = n()
+  )
+```

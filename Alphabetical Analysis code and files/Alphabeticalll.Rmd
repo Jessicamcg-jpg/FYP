@@ -1,0 +1,936 @@
+---
+title: "Alphabet"
+author: "Jessica McGreevy"
+date: "2026-01-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+ 
+library(dplyr)
+library(ggplot2)
+library(stringi)
+library(readr)
+library(gridExtra) #Arranges multiple plots together
+library(stringr)   #regression results with clustered standard errors
+library(lmtest)    #clustered covariance matrix SE 
+library(sandwich)
+ 
+GE_full_Election <- read_csv(
+  "C:\\Users\\lilly\\Documents\\2020-05-27_general-election-2020-countdetails-csv_en.csv",
+  locale = locale(encoding = "Latin1") #Reads fadas 
+)
+
+# Rename columns for convenience
+GE_full_Election <- GE_full_Election %>%
+  rename(
+    Candidate_surname = `Candidate surname`,
+    Candidate_First_Name = `Candidate First Name`,
+    Count_Number = `Count Number`,
+    Candidate_Id = `Candidate Id`,
+    Constituency_Name = `Constituency Name`
+  ) %>%
+  mutate(
+    Candidate_surname = as.character(Candidate_surname),
+    Candidate_First_Name = as.character(Candidate_First_Name),
+    # Encode to UTF-8 safely; invalid bytes replaced
+    Candidate_surname = stri_enc_toutf8(Candidate_surname, is_unknown_8bit = TRUE),
+    Candidate_First_Name = stri_enc_toutf8(Candidate_First_Name, is_unknown_8bit = TRUE)
+  )
+
+# Unique constituencies
+constituencies <- unique(GE_full_Election$Constituency_Name)
+ 
+for (const in constituencies) {
+  
+  data_const <- GE_full_Election %>% filter(Constituency_Name == const)
+  
+  total_candidates <- data_const %>%
+    filter(Count_Number == 1) %>%
+    distinct(Candidate_Id) %>% nrow()
+  
+  FullElection <- data_const %>%
+    filter(Count_Number == 1) %>%
+    group_by(Candidate_Id, Candidate_First_Name, Candidate_surname) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+    # Normalise Mc to MAC~ for ballot-style ordering maintain the alphabetical order
+    #The tilde creates that difference at position 4 for "Mc" surnames, ensuring they sort after original "Mac" surnames but       before "Mu" surnames.
+    surname_norm = ifelse(
+      stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE),
+      stringi::stri_replace_first_regex(Candidate_surname, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+      Candidate_surname
+    ),
+      firstname_norm = Candidate_First_Name,
+      # ASCII-safe key for surname sorting with uppercase 
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(firstname_norm, "Latin-ASCII")),
+      Candidate_Name = paste(Candidate_First_Name, Candidate_surname),
+      
+      
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, Candidate_Id) %>%
+    mutate(
+      Candidate_Name_factor = factor(Candidate_Name, levels = Candidate_Name),
+      Normalised_FP = First_Preferences / total_candidates
+    )
+  
+  # Plot
+  p <- ggplot(FullElection, aes(x = Candidate_Name_factor, y = Normalised_FP)) +
+    geom_col(fill = "darkgreen") +
+    geom_text(aes(label = round(Normalised_FP, 3)), vjust = -0.3, size = 3) +
+    labs(
+      title = paste("Normalised First Preferences –", const),
+      x = "Candidate Name",
+      y = "Normalised First Preference Vote"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  
+  print(p)
+}
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+ 
+
+constituencies <- unique(GE_full_Election$Constituency_Name)
+cor_results_final <- list()
+
+for (const in constituencies) {
+  # Get final vote totals (last count for each candidate)
+  final_votes <- GE_full_Election %>%
+    filter(Constituency_Name == const) %>%
+    group_by(Candidate_Id, Candidate_surname, Candidate_First_Name) %>%
+    # Get the last count for each candidate (when elected/eliminated)
+    slice_max(Count_Number, n = 1, with_ties = FALSE) %>%
+    summarise(
+      Final_Votes = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Normalise Mc to MAC~ for ballot-style ordering as to fix the sorting correctly 
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(Candidate_surname, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        Candidate_surname
+      ),
+      # Convert to uppercase for consistent sorting
+      surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_key = toupper(stri_trans_general(Candidate_First_Name, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_key, firstname_key) %>% 
+    mutate(Surname_Rank = row_number())
+  
+  # Spearman correlation
+  if(nrow(final_votes) > 1){  
+    test <- cor.test(
+      final_votes$Surname_Rank,
+      final_votes$Final_Votes,
+      method = "spearman"
+    )
+    cor_results_final[[const]] <- data.frame(
+      Constituency = const,
+      Spearman_rho = unname(test$estimate),
+      p_value = test$p.value,
+      N = nrow(final_votes)
+    )
+  } else {
+    cor_results_final[[const]] <- data.frame(
+      Constituency = const,
+      Spearman_rho = NA,
+      p_value = NA,
+      N = nrow(final_votes)
+    )
+  }
+}
+
+cor_results_final_df <- bind_rows(cor_results_final)
+cor_results_final_df
+
+# Summary statistics
+cat("\nSummary of Final Vote Correlations:\n")
+cat("Mean Spearman rho:", mean(cor_results_final_df$Spearman_rho, na.rm = TRUE), "\n")
+cat("SD:", sd(cor_results_final_df$Spearman_rho, na.rm = TRUE), "\n")
+cat("N constituencies:", sum(!is.na(cor_results_final_df$Spearman_rho)), "\n")
+```
+So in summary they are not that different when use the first preference vote, Mean Spearman rho: -0.1224139 
+SD: 0.2290812 
+N constituencies: 39 
+
+ 
+
+ 
+
+```{r}
+ 
+constituencies <- unique(GE_full_Election$Constituency_Name)
+cor_results_final <- list()
+
+for (const in constituencies) {
+  # Get final vote totals instead of first pref - use Total Votes column 
+  final_votes <- GE_full_Election %>%
+    filter(Constituency_Name == const) %>%
+    #As the last line of total votes would be 0 of candiate was eliminated 
+    filter(`Total Votes` > 0) %>%
+    arrange(Candidate_Id, Count_Number) %>%
+    group_by(Candidate_Id, Candidate_surname, Candidate_First_Name) %>%
+    # Take the last row for each candidate
+    slice_tail(n = 1) %>%
+    ungroup() %>%
+    select(Candidate_Id, Candidate_surname, Candidate_First_Name, 
+           Final_Votes = `Total Votes`, Final_Count_Number = Count_Number, Result) %>%
+    mutate(
+      # Normalise Mc → MAC~ for ballot-style ordering
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(Candidate_surname, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        Candidate_surname
+      ),
+      # Convert to uppercase for consistent sorting
+      surname_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_key = toupper(stri_trans_general(Candidate_First_Name, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_key, firstname_key) %>% 
+    mutate(Surname_Rank = row_number())
+  
+  
+  # Spearman correlation
+  if(nrow(final_votes) > 1){  
+    test <- cor.test(
+      final_votes$Surname_Rank,
+      final_votes$Final_Votes,
+      method = "spearman"
+    )
+    cor_results_final[[const]] <- data.frame(
+      Constituency = const,
+      Spearman_rho = unname(test$estimate),
+      p_value = test$p.value,
+      N = nrow(final_votes)
+    )
+  } else {
+    cor_results_final[[const]] <- data.frame(
+      Constituency = const,
+      Spearman_rho = NA,
+      p_value = NA,
+      N = nrow(final_votes)
+    )
+  }
+}
+
+cor_results_final_df <- bind_rows(cor_results_final)
+cor_results_final_df
+
+# Summary statistics
+ 
+cat("Mean Spearman rho:", mean(cor_results_final_df$Spearman_rho, na.rm = TRUE), "\n")
+cat("SD:", sd(cor_results_final_df$Spearman_rho, na.rm = TRUE), "\n")
+cat("N constituencies:", sum(!is.na(cor_results_final_df$Spearman_rho)), "\n")
+```
+This one  looks at the diffrence between the final total votes instead of first prefernce to see if there is stronger pattern on first glance ther seems not to be. with the orginal value being very similar to the value used now. Similarily will preform ols. Summary of Final Vote Correlations:
+Mean Spearman rho: -0.1190337 
+SD: 0.2477297 
+N constituencies: 39 
+Difficulty finding the total votes to read 
+
+
+```{r}
+ 
+# Get all unique candidates with their election status
+candidate_data <- GE_full_Election %>%
+  group_by(Candidate_Id, Candidate_surname) %>%
+  summarise(
+    Elected = any(Result == "Elected", na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    # Separate Mc from M
+    First_Letter = case_when(
+      stringi::stri_detect_regex(Candidate_surname, "^Mc\\s*", case_insensitive = TRUE) ~ "Mc",
+      TRUE ~ toupper(substr(Candidate_surname, 1, 1))
+    )
+  )
+
+# Calculate totals
+total_candidates <- nrow(candidate_data)
+total_elected <- sum(candidate_data$Elected)
+
+ 
+surname_summary <- candidate_data %>%
+  group_by(First_Letter) %>%
+  summarise(
+    All_Candidates = n(),
+    Elected_TDs = sum(Elected),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Pct_All = All_Candidates / total_candidates * 100,
+    Pct_Elected = Elected_TDs / total_elected * 100
+  ) %>%
+  arrange(First_Letter)
+
+# Plot 1: All Candidates
+p1 <- ggplot(surname_summary, aes(x = First_Letter, y = All_Candidates)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = sprintf("%d\n(%.1f%%)", All_Candidates, Pct_All)), 
+            vjust = -0.3, 
+            size = 2.8) +
+  labs(
+    title = "All Candidates by Surname Initial",
+   
+    x = "Surname Initial",
+    y = "Number of Candidates"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 12)
+  )
+
+#Plot 2: Elected TDs
+p2 <- ggplot(surname_summary, aes(x = First_Letter, y = Elected_TDs)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = sprintf("%d\n(%.1f%%)", Elected_TDs, Pct_Elected)), 
+            vjust = -0.3, 
+            size = 2.8) +
+  labs(
+    title = "Elected TDs by Surname Initial",
+    x = "Surname Initial",
+    y = "Number of Elected TDs"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 12)
+  )
+
+# 
+print(p1)
+print(p2)
+
+ 
+
+
+
+```
+
+```{r}
+comparison_table <- surname_summary %>% 
+  mutate(
+    All = sprintf("%d (%.1f%%)", All_Candidates, Pct_All),
+    Elected = sprintf("%d (%.1f%%)", Elected_TDs, Pct_Elected),
+    Difference = Pct_Elected - Pct_All,
+    Bias = case_when(
+      Difference > 1 ~ "Potential bias",
+      Difference < -1 ~ "Under-represented",
+      TRUE ~ "Neutral"
+    )
+  ) %>%
+  select(Letter = First_Letter, `All Candidates` = All, `Elected TDs` = Elected, 
+         `Difference (pp)` = Difference, Bias) %>%
+  #arrange(desc(`Difference (pp)`))
+  arrange(Letter) 
+
+print(comparison_table, row.names = FALSE)
+
+ 
+```
+
+```{r}
+# Check C surnames
+
+c_candidates <- candidate_data %>%
+  filter(First_Letter == "C") %>%
+  select(Candidate_surname, Elected)
+
+cat("\nTotal C surnames:", nrow(c_candidates))
+cat("\nElected C surnames:", sum(c_candidates$Elected))
+cat("\n\nFirst 20 C surnames:\n")
+print(c_candidates)
+
+ 
+```
+
+This is following Regans paper with the descriptive statistics needed 
+Added party ids from when i did a fuzzy lookup between the 2 datasets to match party id and candidate name
+
+```{r}
+GE_full_Election_p <- read_csv(
+  "C:\\Users\\lilly\\Documents\\2020_election_party.csv",
+  locale = locale(encoding = "Latin1")
+)
+names(GE_full_Election_p)
+```
+```{r}
+
+#did atleast 2 candidates run in different constuencys added sf gp compared to regans list as other left parties have grown in popularity 
+# Get unique candidates with their party
+candidate_party <- GE_full_Election_p %>%
+  group_by( `Constituency Name`, `Candidate surname`, `Candidate First Name`) %>%
+  slice(1) %>%  # Take first row for each unique candidate
+  ungroup() %>%
+  select( `Candidate Id` , `Candidate surname`, `Candidate First Name`, `Party Abbreviation`) %>%
+  mutate(
+    Party_Group = case_when(
+      `Party Abbreviation` == "F.F." ~ "Fianna Fáil",
+      `Party Abbreviation` == "F.G." ~ "Fine Gael",
+      `Party Abbreviation` == "LAB." ~ "Labour",
+      `Party Abbreviation` == "S.F." ~ "Sinn Féin",
+      `Party Abbreviation` == "G.P." ~ "Green Party/ Comhaontas Glas",
+      `Party Abbreviation` == "NON-P." ~ "Non-Party",
+      is.na(`Party Abbreviation`) | `Party Abbreviation` == "" ~ "Non-Party",
+      TRUE ~ "Other Parties"
+    )
+  )
+
+
+# Export candidate list to CSV for verification
+write.csv(candidate_party, 
+          "candidate_party_list.csv", 
+          row.names = FALSE)
+cat("\n\nCandidate list exported to: candidate_party_list.csv")
+
+ 
+
+# 2. Count total rows vs unique combinations
+cat("Total rows in candidate_party:", nrow(candidate_party), "\n")
+cat("Unique candidates:", candidate_party %>% 
+      distinct(`Candidate Id` , `Candidate surname`, `Candidate First Name`) %>% 
+      nrow(), "\n")
+
+# Summary statistics by party group
+party_summary <- candidate_party %>%
+  group_by(Party_Group) %>%
+  summarise(
+    Num_Candidates = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Num_Candidates))
+
+# Print table
+ 
+print(party_summary, row.names = FALSE)
+
+cat("\n\nTotal Candidates:", sum(party_summary$Num_Candidates))
+
+# Other smaller parties  
+other_parties <- candidate_party %>%
+  filter(Party_Group == "Other Parties") %>%
+  count(`Party Abbreviation`, name = "Candidates") %>%
+  arrange(desc(Candidates))
+
+print(other_parties, row.names = FALSE)
+```
+
+```{r}
+#need to figure out the number of imcumbrants comparing to the 2016 election and know which one retired 
+
+GE_2016 <- read_csv("C:\\Users\\lilly\\Downloads\\generalelection2016countdetails.csv", locale = locale(encoding = "Latin1"))
+elected_2016 <- GE_2016 %>%
+  filter(Result == "Elected") %>%
+  distinct(`Candidate surname`, `Candidate First Name`,`Constituency Name`) %>%
+  mutate(Incumbent = TRUE)
+GE_2020_with_incumbents <- GE_full_Election_p %>%
+  left_join(
+    elected_2016,
+  by = c("Candidate surname"  , 
+           "Candidate First Name"  , 
+           "Constituency Name"  )
+  ) %>%
+  mutate(Incumbent = ifelse(is.na(Incumbent), FALSE, TRUE))
+names(GE_full_Election_p)
+names(elected_2016)
+nrow(elected_2016)
+```
+ 
+
+ 
+So from here neglecting the 6 as join wasnt working now need to work out 
+1st Preference Votes  
+ ‐ Incumbents (N=1594)  
+ ‐ Challengers (N=3213)  
+ ‐ Fianna Fáil 6 
+ ‐ Fine Gael 5 
+ ‐ Labour 4,434  
+ ‐ Independents  
+tics
+Mean SD Min Max
+
+Details from Regan paper 
+Three  variations  of  the  dependent  variable  are  used:  the  number  of  first 
+preference the  share  of  total  votes in  the  constituency and  Log(Share  of 
+Votes). 
+BallotPositionijt  is a dummy variable for each ballot position. 1-9 
+
+. The graphs show the average number 
+of  first  preference  votes  candidates  receive  over  and  above  the  expected  vote 
+(the  expected  vote  here  is  the  total  valid  poll  divided  by  the  number  of 
+candidates),  arranged  from  ballot  position  1  to  9+.  The  marked  difference 
+between  the  first  few ballot positions and  the remaining ballot positions would 
+suggest a difference 
+
+
+The OLS specification is provided  to allow comparisons between OLS and  fixed 
+effects.  The  OLS  specification  over  estimates  the  effects  of  ballot  ordering, 
+compared to the fixed effects models.  
+The  fixed  effects  estimates  in  Table  IV  suggest  a  positive  and  statistically 
+significant ballot ordering effect of 1.16 percentage points. Referring to the fixed 
+effects  models  in  Table  V,  the  effect  of  being  on  a  subsequent  ballot  position 
+ranges from ‐0.8 to ‐1.79 percentage points compared to being first on the ballot. 
+These  numbers  are  rather  large,  considering  the  share  of  votes  a  candidate 
+
+
+so what i want to do is using the previously divion with parties and now the known incumbracy want with Votesijt, first prefernce share total with the constitenucy with Ballot postion used a dummy variable 1-9 ols specfication. 
+So need to combine first prefernce votes need the 1-9 ballot postion. 
+other (clustered) as candidates are running against each other at a constituency 
+level.  Failure  to account  for error clustering leads  to under‐estimated  standard 
+errors and consequently  the over‐rejection of hypothesis  tests. This paper uses 
+the  multi‐way  clustering  (Cameron,  Gelbach,  and  Miller,  2006)
+1st POSITION 655.0*** 507.9*** 507.9*** 498.4**
+(120.5) (112.5) (166.8) (252.2)
+INCUMBENT TD 3955*** 2870*** 2870*** 774.3***
+(68.85) (79.51) (123.9) (151.2)  
+
+
+Dependent Var: Log(Share of 1st Preference Votes)  
+OLS Fixed Effects Fixed Effects Fixed Effects
+1st POSITION 0.228*** 0.175*** 0.175*** 0.0789
+(0.0428) (0.0370) (0.0542) (0.0550)
+INCUMBENT TD 1.300*** 0.795*** 0.795*** 0.180***
+(0.0221) (0.0251) (0.0426) (0.0315)
+
+```{r}
+ 
+# clean names consistently so 2016 to 2020 match easier
+clean_name <- function(x) {
+  x %>%
+    str_trim() %>%
+    str_to_lower() %>%
+    stringi::stri_trans_general("Latin-ASCII")
+}
+
+
+# Incumbents from 2016
+elected_2016_by_name <- GE_2016 %>%
+  filter(Result == "Elected") %>%
+  mutate(
+    surname_clean   = clean_name(`Candidate surname`),
+    firstname_clean = clean_name(`Candidate First Name`)
+  ) %>%
+  distinct(surname_clean, firstname_clean) %>%
+  mutate(Incumbent_auto = TRUE)
+
+# Clean 2020 candidate names
+GE_2020_clean <- GE_full_Election %>%
+  mutate(
+    surname_clean   = clean_name(Candidate_surname),
+    firstname_clean = clean_name(Candidate_First_Name)
+  )
+
+
+# Join the 2016 and 2020 data, to find what candidates are incumbrants
+
+GE_2020_with_incumbents <- GE_2020_clean %>%
+  left_join(
+    elected_2016_by_name %>% select(surname_clean, firstname_clean, Incumbent_auto),
+    by = c("surname_clean", "firstname_clean")
+  ) %>%
+  mutate(
+    Incumbent = if_else(is.na(Incumbent_auto), FALSE, Incumbent_auto)
+  ) %>%
+  select(-Incumbent_auto)
+
+# Manual overrides (6 names) using 2020 spellings were inconisent not detected by the matching algorthim changed spelling middle name
+
+manual_incumbents_2020 <- tibble::tribble(
+  ~Candidate_surname, ~Candidate_First_Name,
+  "Connolly",         "Catherine",
+  "Moran",            "Kevin Boxer",
+  "Cuív Ó",           "Éamon",
+  "Ó Laoghaire",      "Donnchadh",
+  "Ó'Snodaigh",       "Aengus",
+  "Ryan",             "Eamonn"
+) %>%
+  mutate(
+    surname_clean   = clean_name(Candidate_surname),
+    firstname_clean = clean_name(Candidate_First_Name),
+    Incumbent_manual = TRUE
+  )
+
+# Apply manual overrides to the dataset
+GE_2020_with_incumbents <- GE_2020_with_incumbents %>%
+  left_join(
+    manual_incumbents_2020 %>% select(surname_clean, firstname_clean, Incumbent_manual),
+    by = c("surname_clean", "firstname_clean")
+  ) %>%
+  mutate(
+    Incumbent = if_else(!is.na(Incumbent_manual) & Incumbent_manual == TRUE, TRUE, Incumbent)
+  ) %>%
+  select(-Incumbent_manual)
+
+#  Build unique candidates table
+
+candidates_2020_unique <- GE_2020_with_incumbents %>%
+  distinct(
+    surname_clean,
+    firstname_clean,
+    Candidate_surname,
+    Candidate_First_Name,
+    Constituency_Name,
+    Incumbent
+  )
+
+
+# Count incumbents vs non-incumbents theyre should be 138 3 missing from dataset as of now
+cat("\nNumber of incumbents vs non-incumbents:\n")
+print(candidates_2020_unique %>% count(Incumbent))
+
+# 2016 TDs not found in 2020 what the manual overrides were based off 
+
+missing_2016_tds <- elected_2016_by_name %>%
+  anti_join(
+    candidates_2020_unique,
+    by = c("surname_clean", "firstname_clean")
+  )
+
+cat("\n2016 TDs not found in 2020 data:\n")
+print(missing_2016_tds, n = 50)
+
+cat("\nTotal 2016 TDs not matched:", nrow(missing_2016_tds), "\n")
+```
+
+```{r}
+
+# Dataset with ballot order 
+regression_data_list <- list()
+
+for (const in constituencies) {
+  
+  data_const <- GE_full_Election_p %>% filter(`Constituency Name` == const)
+  
+  total_candidates <- data_const %>%
+    filter(`Count Number` == 1) %>%
+    distinct(`Candidate Id`) %>% nrow()
+  
+  ballot_data <- data_const %>%
+    filter(`Count Number` == 1) %>%
+    group_by(`Candidate Id`, `Candidate First Name`,`Candidate surname`) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      Party_Abbreviation = first(`Party Abbreviation`),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Normalize Mc to MAC~ for ballot-style ordering as before 
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+       `Candidate surname`
+      ),
+      firstname_norm = `Candidate First Name`,
+      # ASCII-safe key for surname sorting with uppercase 
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(firstname_norm, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, `Candidate Id`) %>%
+    mutate(
+      Ballot_Position = row_number(),
+      Constituency_Name = const
+    )
+  
+  regression_data_list[[const]] <- ballot_data
+}
+```
+
+
+```{r}
+# Combine all constituencies
+regression_data <- bind_rows(regression_data_list) %>%
+  # Join with incumbent status
+  left_join(
+    GE_2020_with_incumbents %>% 
+      distinct(Candidate_Id, Constituency_Name, Incumbent),
+    by = c("Candidate Id" = "Candidate_Id", "Constituency_Name")
+  ) %>%
+  # Calculate first preference share
+  group_by(Constituency_Name) %>%
+  mutate(
+    Total_FP_Constituency = sum(First_Preferences, na.rm = TRUE),
+    FP_Share = First_Preferences / Total_FP_Constituency * 100
+  ) %>%
+  ungroup() %>%
+  # Create party groups
+  mutate(
+    Party_Group = case_when(
+      Party_Abbreviation == "F.F." ~ "Fianna Fáil",
+      Party_Abbreviation == "F.G." ~ "Fine Gael",
+      Party_Abbreviation == "LAB." ~ "Labour",
+      Party_Abbreviation == "S.F." ~ "Sinn Féin",
+      Party_Abbreviation == "NON-P." ~ "Non-Party",
+      is.na(Party_Abbreviation) | Party_Abbreviation == "" ~ "Non-Party",
+      TRUE ~ "Other Parties"
+    ),
+    # make ballot position a factor
+    Ballot_Position_Factor = factor(Ballot_Position)
+  ) %>%
+  # Convert to factors
+  mutate(
+    Party_Factor = relevel(factor(Party_Group), ref = "Non-Party"),
+    Incumbent_Factor = factor(Incumbent, levels = c(FALSE, TRUE))
+  )
+
+# Then in the regression, use the factor:
+model <- lm(FP_Share ~ 
+              Ballot_Position_Factor +  # This replaces all the Ballot_Pos_1, Ballot_Pos_2, etc.
+              Party_Factor + 
+              Incumbent_Factor,
+            data = regression_data)
+
+# Cluster standard errors by constituency
+cluster_se <- coeftest(model, vcov = vcovCL(model, cluster = ~ Constituency_Name))
+
+cat("=== OLS REGRESSION: FIRST PREFERENCE VOTE SHARE ===\n\n")
+cat("Dependent Variable: First Preference Vote Share (%)\n")
+cat("Reference Categories: Ballot Position 9+, Non-Party, Non-Incumbent\n")
+cat("Standard Errors: Clustered by Constituency\n\n")
+print(cluster_se)
+
+# Summary statistics
+cat("\n\n=== SUMMARY STATISTICS ===\n")
+cat("Total observations:", nrow(regression_data), "\n")
+cat("Constituencies:", length(unique(regression_data$Constituency_Name)), "\n")
+ 
+cat("Incumbents:", sum(regression_data$Incumbent, na.rm = TRUE), "\n")
+cat("\nParty distribution:\n")
+print(table(regression_data$Party_Group))
+```
+1.65 percentage points vs position 1 Marginally significant just above 0.05
+Being in a party important factor. 
+```{r}
+# Combine all constituencies
+regression_data <- bind_rows(regression_data_list) %>%
+  # Join with incumbent status
+  left_join(
+    GE_2020_with_incumbents %>% 
+      distinct(Candidate_Id, Constituency_Name, Incumbent),
+    by = c("Candidate Id" = "Candidate_Id", "Constituency_Name")
+  ) %>%
+  # Calculate first preference share
+  group_by(Constituency_Name) %>%
+  mutate(
+    Total_FP_Constituency = sum(First_Preferences, na.rm = TRUE),
+    FP_Share = First_Preferences / Total_FP_Constituency * 100
+  ) %>%
+  ungroup() %>%
+  # FILTER TO TOP 9 POSITIONS ONLY
+  filter(Ballot_Position <= 9) %>%
+  # Create party groups
+  mutate(
+    Party_Group = case_when(
+      Party_Abbreviation == "F.F." ~ "Fianna Fáil",
+      Party_Abbreviation == "F.G." ~ "Fine Gael",
+      Party_Abbreviation == "LAB." ~ "Labour",
+      Party_Abbreviation == "S.F." ~ "Sinn Féin",
+      Party_Abbreviation == "NON-P." ~ "Non-Party",
+      is.na(Party_Abbreviation) | Party_Abbreviation == "" ~ "Non-Party",
+      TRUE ~ "Other Parties"
+    ),
+    # Categorical ballot position (only 1-9)
+    Ballot_Position_Factor = factor(Ballot_Position)
+  ) %>%
+  # Convert to factors
+  mutate(
+    Party_Factor = relevel(factor(Party_Group), ref = "Non-Party"),
+    Incumbent_Factor = factor(Incumbent, levels = c(FALSE, TRUE))
+  )
+
+# Then in the regression, use the factor
+model <- lm(FP_Share ~ 
+              Ballot_Position_Factor +
+              Party_Factor + 
+              Incumbent_Factor,
+            data = regression_data)
+
+# Cluster standard errors by constituency
+cluster_se <- coeftest(model, vcov = vcovCL(model, cluster = ~ Constituency_Name))
+
+
+cat("Dependent Variable: First Preference Vote Share (%)\n")
+
+cat("Standard Errors: Clustered by Constituency\n\n")
+print(cluster_se)
+
+```
+When limited to 9 ballot positions,   Ballot_Position_Factor2   -1.6204 which does fit range in regans paper 0.0549358 .
+
+
+```{r}
+cat("Incumbents:", sum(regression_data$Incumbent, na.rm = TRUE), "\n")
+cat("\nParty distribution:\n")
+print(table(regression_data$Party_Group))
+
+# Model fit
+cat("\n\n=== MODEL FIT ===\n")
+cat("R-squared:", summary(model)$r.squared, "\n")
+cat("Adjusted R-squared:", summary(model)$adj.r.squared, "\n")
+
+# Export regression data for review
+write.csv(regression_data, "regression_data.csv", row.names = FALSE)
+cat("\n\nRegression dataset exported to: regression_data.csv")
+```
+
+
+
+```{r}
+
+# Create regression dataset using your existing ballot position logic
+regression_data_list <- list()
+
+for (const in constituencies) {
+  
+  data_const <- GE_full_Election_p %>% filter(`Constituency Name` == const)
+  
+  ballot_data <- data_const %>%
+    filter(`Count Number` == 1) %>%
+    group_by(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      Party_Abbreviation = first(`Party Abbreviation`),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Normalise Mc to MAC~ for ballot-style ordering
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      firstname_norm = `Candidate First Name`,
+      # ASCII-safe key for surname sorting with uppercase 
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(firstname_norm, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, `Candidate Id`) %>%
+    mutate(
+      Ballot_Position = row_number(),
+      Constituency_Name = const
+    )
+  
+  regression_data_list[[const]] <- ballot_data
+}
+
+# Combine all constituencies
+regression_data <- bind_rows(regression_data_list) %>%
+  # Join with incumbent status
+  left_join(
+    GE_2020_with_incumbents %>% 
+      distinct(Candidate_Id, Constituency_Name, Incumbent),
+    by = c("Candidate Id" = "Candidate_Id", "Constituency_Name" = "Constituency_Name")
+  ) %>%
+  # Ensure no NAs in Incumbent column
+  mutate(Incumbent = if_else(is.na(Incumbent), FALSE, Incumbent)) %>%
+  # Calculate first preference share within constituency
+  group_by(Constituency_Name) %>%
+  mutate(
+    Total_FP_Constituency = sum(First_Preferences, na.rm = TRUE),
+    FP_Share = (First_Preferences / Total_FP_Constituency) * 100,
+    # Log of vote share (add small constant to avoid log(0))
+    Log_FP_Share = log(FP_Share + 0.01)
+  ) %>%
+  ungroup() %>%
+  # Filter to top  9 only
+  filter(Ballot_Position <= 9) %>%
+  # Create party groups
+  mutate(
+    Party_Group = case_when(
+      Party_Abbreviation == "F.F." ~ "Fianna Fáil",
+      Party_Abbreviation == "F.G." ~ "Fine Gael",
+      Party_Abbreviation == "LAB." ~ "Labour",
+      Party_Abbreviation == "S.F." ~ "Sinn Féin",
+      Party_Abbreviation == "NON-P." ~ "Non-Party",
+      is.na(Party_Abbreviation) | Party_Abbreviation == "" ~ "Non-Party",
+      TRUE ~ "Other Parties"
+    ),
+    # Categorical ballot position (positions 1-9)
+    Ballot_Position_Factor = factor(Ballot_Position)
+  ) %>%
+  # Convert to factors with reference categories
+  mutate(
+    Party_Factor = relevel(factor(Party_Group), ref = "Non-Party"),
+    Incumbent_Factor = factor(Incumbent, levels = c(FALSE, TRUE))
+  )
+
+# OLS Regression with Log of Vote Share - Categorical Positions as done similarily in the table
+model <- lm(Log_FP_Share ~ 
+              Ballot_Position_Factor +
+              Party_Factor + 
+              Incumbent_Factor,
+            data = regression_data)
+
+# Cluster standard errors by constituency
+cluster_se <- coeftest(model, vcov = vcovCL(model, cluster = ~ Constituency_Name))
+
+cat("=== LOG MODEL: CATEGORICAL BALLOT POSITIONS (1-9) ===\n\n")
+cat("Dependent Variable: Log(First Preference Vote Share)\n")
+cat("Reference Categories: Ballot Position 1, Non-Party, Non-Incumbent\n")
+cat("Standard Errors: Clustered by Constituency\n")
+cat("Note: Coefficients show log point changes; approx equal to % changes\n\n")
+print(cluster_se)
+
+# Summary statistics
+cat("\n\n=== SUMMARY STATISTICS ===\n")
+cat("Total observations:", nrow(regression_data), "\n")
+cat("Constituencies:", length(unique(regression_data$Constituency_Name)), "\n")
+cat("Incumbents:", sum(regression_data$Incumbent, na.rm = TRUE), "\n")
+cat("\nParty distribution:\n")
+print(table(regression_data$Party_Group))
+
+# Model fit
+cat("\n\n=== MODEL FIT ===\n")
+cat("R-squared:", summary(model)$r.squared, "\n")
+cat("Adjusted R-squared:", summary(model)$adj.r.squared, "\n")
+
+
+```
+
+
+```{r}
+# Simple linear ballot position model (like the paper)
+model_linear <- lm(FP_Share ~ Ballot_Position + Party_Factor + Incumbent_Factor,
+                   data = regression_data)
+cluster_se_linear <- coeftest(model_linear, vcov = vcovCL(model_linear, cluster = ~ Constituency_Name))
+
+# Print results
+cat("=== LINEAR BALLOT POSITION MODEL ===\n\n")
+cat("Dependent Variable: First Preference Vote Share (%)\n")
+cat("Standard Errors: Clustered by Constituency\n\n")
+print(cluster_se_linear)
+
+# Model fit
+cat("\n\nR-squared:", summary(model_linear)$r.squared, "\n")
+cat("Adjusted R-squared:", summary(model_linear)$adj.r.squared, "\n")
+
+# Key coefficient interpretation
+ballot_coef <- cluster_se_linear["Ballot_Position", "Estimate"]
+ballot_pval <- cluster_se_linear["Ballot_Position", "Pr(>|t|)"]
+
+```
+The ballot order effect exists but is non-linear it's more concentrated in the top positions , not spread evenly across all positions. 
+Attempt 2 way clustering next on paper  candidate and constituency. 
