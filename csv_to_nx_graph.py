@@ -67,13 +67,16 @@ def plot_G(G):
 #--IMPLEMENTATION
 full_df = pd.read_csv("General_Election_2020_full.csv")
 
-constituency = "Dublin Bay South"
+constituency_list = list(full_df["Constituency Name"].unique())
+print(constituency_list) 
+
+constituency = "Dublin Bay South" #enter a constituency as printed above
 constituency_df = full_df.loc[full_df["Constituency Name"]==constituency]
 
 G = graph_of_data(constituency_df)
 plot_G(G)
 
-communities = nx.community.louvain_communities(G)
+communities = nx.community.louvain_communities(G, seed=42) #set seed for deterministic communities.
 print(f"Communities produced by Louvain algorithm for {constituency}:\n")
 for c in communities:
     print(f"{c}\n")
