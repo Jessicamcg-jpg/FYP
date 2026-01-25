@@ -1,8 +1,13 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
 def all_counts_bar_chart(ct_lst, vals_lst):
     """
     Prints a plt bar chart with labels above each bar.
     """
     plt.figure(figsize=(10, 5))
+    plt.ylim(0,0.035)
     
     bars = plt.bar(ct_lst, vals_lst, color='skyblue',width=0.4,align = "center")
     
@@ -12,7 +17,7 @@ def all_counts_bar_chart(ct_lst, vals_lst):
     
     for bar in bars:
         yval = bar.get_height()
-        plt.text(bar.get_x(), yval + .005, yval)
+        plt.text(bar.get_x(), yval + .001, yval)
     
     #save_results_to = "C:/Users/22358313/Desktop/University/4th_Year/FYP/figures/non_transfer-bar_charts-labels/"
     #file_name = "national-non-t-per-count"
@@ -40,5 +45,13 @@ def non_cumul_propn_per_count(df):
     all_counts_bar_chart(list(range(1,16)),propn_lst)
 
 #--IMPLEMENTATION
+
+#--national trend
 full_df = pd.read_csv("General_Election_2020_full.csv")
 non_cumul_propn_per_count(full_df)
+
+#--constituency trend
+constituency = "Cavan-Monaghan"
+constituency_df = full_df.loc[full_df["Constituency Name"]==constituency]
+
+non_cumul_propn_per_count(constituency_df, constituency)
