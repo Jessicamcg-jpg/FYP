@@ -1,3 +1,7 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import networkx as nx
+
 full_df = pd.read_csv("General_Election_2020_full.csv")
 
 consti_list = list(full_df["Constituency Name"].unique())
