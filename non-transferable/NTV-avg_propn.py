@@ -1,8 +1,13 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
 def all_counts_bar_chart(ct_lst, vals_lst):
     """
     Plots a plt bar chart of count vs non-transferable votes.
     """
     plt.figure(figsize=(10, 5))
+    plt.ylim(0,0.035)
     
     bars = plt.bar(ct_lst, vals_lst, color='skyblue',width=0.4,align = "center")
     
