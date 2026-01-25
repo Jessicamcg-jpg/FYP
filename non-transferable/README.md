@@ -5,5 +5,5 @@ To develop a model that predicts the result of an election (i.e. predict where v
 
 File contains:
 - NTV-avg_propn.py : calculate the normalised proportion of non-transferables of each active constituency and take average, at each count. cumulative.
-- NTV-non_cumul.py : treat the valid polls of each constituency as one big valid poll, at each count. Contains implementation for analysing national and constituency-level trend.
+- (file I mostly use) NTV-non_cumul.py : treat the valid polls of each constituency as one big valid poll, at each count. Contains implementation for analysing national and constituency-level trend.
 - summarise_by_count.py : program to produce a dataframe and bar charts summarising trends, by count.
