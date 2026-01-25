@@ -5,3 +5,4 @@ To develop a model that predicts the result of an election (i.e. predict where v
 
 File contains:
 - two algorithms to calculate the normalised proportion of non-transferables. Contains implementation for analysing national and constituency-level trend.
+- program to produce a dataframe and bar charts summarising trends, by count.
