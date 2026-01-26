@@ -54,4 +54,4 @@ non_cumul_propn_per_count(full_df)
 constituency = "Cavan-Monaghan"
 constituency_df = full_df.loc[full_df["Constituency Name"]==constituency]
 
-non_cumul_propn_per_count(constituency_df, constituency)
+non_cumul_propn_per_count(constituency_df)
