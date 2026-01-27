@@ -1,0 +1,1707 @@
+---
+title: "Alaphabet"
+author: "Jessica McGreevy"
+date: "2025-11-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(stringi)
+library(tidyverse)
+library(readr)
+ 
+GE_full_Election <- read_csv("C:\\Users\\lilly\\Downloads\\General_Election_2020_count.csv")
+
+nodes <- GE_full_Election %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes.csv")
+
+
+ # Get first preferences for the election
+FullElection <- GE_full_Election %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>%
+    
+  mutate(Surname_Initial = toupper(substr(`Candidate surname`, 1, 1)))
+  total_candidates <- nrow(nodes)
+#  Summarise by surname initial
+full_summarise <- FullElection %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    #Candidates = n(),
+    Avg_First_Pref = Total_First_Pref / total_candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  mutate(Normalised_FirstPref = Avg_First_Pref / nrow(FullElection)) %>%
+  arrange(Surname_Initial)
+  print(full_summarise)
+  write_csv(full_summarise, "surname_initial_results1.csv")
+
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "red") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+ 
+ nrow(FullElection)
+ #number of first prefreances 
+```
+
+```{r}
+ 
+#want to change the code to get the full election data
+GE_full_Election <- read_csv("C:\\Users\\lilly\\Downloads\\General_Election_2020_count.csv")
+
+nodes <- GE_full_Election %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes.csv")
+
+
+ # Get first preferences for the election
+FullElection <- GE_full_Election %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>% for Donegal data
+   
+  mutate(Surname_Initial = toupper(substr(`Candidate surname`, 1, 1)))
+ 
+#  Summarise by surname initial
+full_summarise2 <- FullElection %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    Candidates = n(),
+    
+    Avg_First_Pref = Total_First_Pref / Candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  rename(Normalised_FirstPref = Avg_First_Pref) %>%
+  arrange(Surname_Initial)
+  print(full_summarise2)
+  write_csv(full_summarise2, "surname_initial_results2.csv")
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise2, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "blue") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+#gives doherty as he had the highest number of votes
+ 
+ nrow(FullElection)
+ 
+  
+```
+
+```{r}
+#had to update the encoding of the document to read the Ó then change sub string to stri_sub in order to handle the fada and other initials it is found in the correct order
+ 
+
+GE_full_Election_O <- read_csv("C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",locale = locale(encoding = "WINDOWS-1252"))
+nodes <- GE_full_Election_O %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes2.csv")
+
+
+ # Get first preferences for the election
+FullElection_O <- GE_full_Election_O %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>% for Donegal data
+  mutate(
+    Surname_Initial = toupper(stri_sub(`Candidate surname`, 1, 1))
+  )
+  
+ 
+#  Summarise by surname initial
+full_summarise2 <- FullElection_O %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    Candidates = n(),
+    Avg_First_Pref = Total_First_Pref / Candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  rename(Normalised_FirstPref = Avg_First_Pref) %>%
+  arrange(Surname_Initial)
+  print(full_summarise2)
+  write_csv(full_summarise2, "surname_initial_results2.csv")
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise2, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "blue") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+#gives doherty as he had the highest number of votes
+ 
+ nrow(FullElection)
+```
+
+```{r}
+ 
+
+Initial.df <- read_csv("C:\\Users\\lilly\\Documents\\Surname_initals_cleaned.csv")
+print(Initial.df)
+Initial.df$Initial_Rank <- match(Initial.df$Surname_Initial, LETTERS) #converts letters to numbers compares rank 
+spearman_result <- cor.test(
+  Initial.df$Initial_Rank,
+  Initial.df$Normalised_FirstPref,
+  method = "spearman"
+)
+
+spearman_result
+library(ggplot2)
+
+ggplot(Initial.df, aes(x = Initial_Rank, y = Normalised_FirstPref)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Alphabet Rank vs Normalised First-Preference Votes",
+    x = "Alphabet Position (A=1, Z=26)",
+    y = "Normalised First Pref (per candidate)"
+  ) +
+  theme_minimal()
+kruskal.test(Normalised_FirstPref ~ Surname_Initial, data = Initial.df)
+
+#S is equal to test statistic, initally negatively corr
+```
+
+```{r}
+#used as away to see how often first initial occured workswith O fada next goal split mc and m as m big dataset 
+candidates_M <- GE_full_Election_O %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  filter(toupper(stri_sub(`Candidate surname`, 1, 1)) == "T")
+
+print(candidates_M) #theres 78
+```
+
+```{r}
+ 
+GE_full_Election_OandM <- read_csv("C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",locale = locale(encoding = "WINDOWS-1252"))
+nodes <- GE_full_Election_O %>%
+  select(`Candidate Id`, `Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes, "C:\\Users\\lilly\\Downloads\\fullGElection_nodes2.csv")
+
+
+ # Get first preferences for the election
+FullElection_OandM <- GE_full_Election_OandM %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Candidate Id`, `Candidate surname`) %>%
+  summarise(First_Preferences = sum(Votes, na.rm = TRUE)) %>% #votes column initial votes done
+  ungroup() %>%
+  #filter(toupper(substr(`Candidate surname`, 1, 1)) != "D") %>% for Donegal data
+  mutate(
+    CleanSurname = str_trim(`Candidate surname`),
+     Surname_Initial = case_when(
+      # Detect Mc (case insensitive) and classify as "Mc"
+      str_detect(CleanSurname, regex("^Mc", ignore_case = TRUE)) ~ "Mc",
+
+      # Otherwise keeping fadas 
+      TRUE ~ toupper(stri_sub(`Candidate surname`, 1, 1)),)
+    )
+     
+  
+  #want to add an or mc here 
+ 
+#  Summarise by surname initial
+full_summarise2 <- FullElection_OandM %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+    Candidates = n(),
+    Avg_First_Pref = Total_First_Pref / Candidates #normalised by candiate
+     
+  ) %>%
+  ungroup() %>%
+  rename(Normalised_FirstPref = Avg_First_Pref) %>%
+  arrange(Surname_Initial)
+  print(full_summarise2)
+  write_csv(full_summarise2, "surname_initial_results2.csv")
+#  Alphabetical histogram of first prefs by surname initial
+ggplot(full_summarise2, aes(x = Surname_Initial, y = Normalised_FirstPref)) +
+  geom_col(fill = "blue") +
+  geom_text(aes(label = round(Normalised_FirstPref, 3)), vjust = -0.3, size = 3) +
+  labs(
+    title = "Alphabetical Distribution of First Preferences by Surname (2020 Election Result)",
+    x = "Surname Initial",
+    y = "Normalised First Preferences (per candidate)"
+  ) +
+  theme_minimal()
+#gives doherty as he had the highest number of votes
+ 
+ nrow(FullElection)
+```
+
+```{r}
+Initial.df <- read_csv("C:\\Users\\lilly\\Documents\\Surname_initals_cleaned.csv") #had to create new file with just initial and normalisation with Ofada ordered correctly
+all_initials <- c(LETTERS, "Mc") #had to rename in order to include first letter and mc
+print(Initial.df)
+Initial.df$Initial_Rank <- match(Initial.df$Surname_Initial, all_initials) #converts letters to numbers compares rank 
+spearman_result <- cor.test(
+  Initial.df$Initial_Rank,
+  Initial.df$Normalised_FirstPref,
+  method = "spearman"
+)
+
+spearman_result
+library(ggplot2)
+
+ggplot(Initial.df, aes(x = Initial_Rank, y = Normalised_FirstPref)) +
+  geom_point(size = 3) +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(
+    title = "Alphabet Rank vs Normalised First-Preference Votes",
+    x = "Alphabet Position (A=1, Z=26)",
+    y = "Normalised First Pref (per candidate)"
+  ) +
+  theme_minimal()
+kruskal.test(Normalised_FirstPref ~ Surname_Initial, data = Initial.df)
+
+```
+Looking at the cumulative graph
+```{r}
+GE_full_Election <- read_csv(
+  "C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",
+  locale = locale(encoding = "Latin1")
+)
+
+# Get list of constituencies
+constituencies <- unique(GE_full_Election$`Constituency Name`)
+
+# Process each constituency separately
+for (const in constituencies) {
+  # Filter data for this constituency
+  data_const <- GE_full_Election %>%
+    filter(`Constituency Name` == const, `Count Number` == 1)
+  
+  # Get total number of candidates in this constituency
+  total_candidates <- data_const %>%
+    distinct(`Candidate Id`) %>%
+    nrow()
+  
+  # Calculate first preferences by surname initial
+  initial_summary <- data_const %>%
+    group_by(`Candidate Id`, `Candidate surname`) %>%
+    summarise(First_Preferences = sum(Votes, na.rm = TRUE), .groups = "drop") %>%
+    mutate(
+       surname_norm = ifelse(
+        stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      # Create sort key (removes accents)
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      # Extract initial from sort key
+      Surname_Initial = case_when(
+        stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE) ~ "Mc",
+        TRUE ~ substr(surname_sort_key, 1, 1)
+      )
+    ) %>%
+    group_by(Surname_Initial) %>%
+    summarise(
+      Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+      Candidates = n(),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      Avg_First_Pref = Total_First_Pref / Candidates
+    ) %>%
+    arrange(Surname_Initial) %>%
+    mutate(
+      # Cumulative sum including current initial
+      Cumulative_Avg = cumsum(Avg_First_Pref)
+    )
+  
+  # Print table for this constituency
+  cat("\n", rep("=", 60), "\n", sep = "")
+  cat("CONSTITUENCY:", const, "\n")
+  cat("Total Candidates:", total_candidates, "\n")
+  cat(rep("=", 60), "\n\n", sep = "")
+  print(initial_summary, n = Inf)
+  
+  # Create cumulative plot
+  p <- ggplot(initial_summary, aes(x = Surname_Initial)) +
+    geom_col(aes(y = Avg_First_Pref), fill = "lightblue", alpha = 0.6) +
+    geom_line(aes(y = Cumulative_Avg, group = 1), 
+              color = "darkblue", linewidth = 1.2) +
+    geom_point(aes(y = Cumulative_Avg), 
+               color = "darkblue", size = 3) +
+    geom_text(aes(y = Cumulative_Avg, 
+                  label = round(Cumulative_Avg, 0)),
+              vjust = -0.5, size = 3, color = "darkblue") +
+    labs(
+      title = paste("Cumulative First Preferences by Surname Initial"),
+      subtitle = paste(const, "– Total Candidates:", total_candidates),
+      x = "Surname Initial (Alphabetical)",
+      y = "First Preferences",
+      caption = "Bars = Average per initial | Line = Cumulative sum"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+      plot.title = element_text(size = 13, face = "bold"),
+      plot.subtitle = element_text(size = 11)
+    )
+  
+  print(p)
+  
+  # Save individual plot
+  ggsave(
+    filename = paste0("cumulative_", gsub(" ", "_", const), ".png"),
+    plot = p,
+    width = 10,
+    height = 6,
+    dpi = 300
+  )
+  
+  # Save individual CSV
+  write_csv(
+    initial_summary, 
+    paste0("cumulative_", gsub(" ", "_", const), ".csv")
+  )
+}
+```
+
+```{r}
+
+
+# Load data
+GE_full_Election <- read_csv(
+  "C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",
+  locale = locale(encoding = "Latin1")
+)
+
+# Get list of constituencies
+constituencies <- unique(GE_full_Election$`Constituency Name`)
+
+# Store all results
+all_constituency_data <- data.frame()
+
+# Process each constituency
+for (const in constituencies) {
+  data_const <- GE_full_Election %>%
+    filter(`Constituency Name` == const, `Count Number` == 1)
+  
+  total_candidates <- data_const %>%
+    distinct(`Candidate Id`) %>%
+    nrow()
+  
+  initial_summary <- data_const %>%
+    group_by(`Candidate Id`, `Candidate surname`) %>%
+    summarise(First_Preferences = sum(Votes, na.rm = TRUE), .groups = "drop") %>%
+    mutate(
+      surname_norm = ifelse(
+        stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      # Create sort key (removes accents)
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      # Extract initial from sort key
+      Surname_Initial = case_when(
+        stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE) ~ "Mc",
+        TRUE ~ substr(surname_sort_key, 1, 1)
+      )
+    ) %>%
+    group_by(Surname_Initial) %>%
+    summarise(
+      Total_First_Pref = sum(First_Preferences, na.rm = TRUE),
+      Candidates = n(),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      Avg_First_Pref = Total_First_Pref / Candidates
+    ) %>%
+    arrange(Surname_Initial) %>%
+    mutate(
+      Cumulative_Avg = cumsum(Avg_First_Pref),
+      Constituency = const,
+      Total_Candidates = total_candidates
+    )
+   all_constituency_data <- rbind(all_constituency_data, initial_summary)
+}
+
+# Calculate average across all constituencies
+average_by_initial <- all_constituency_data %>%
+  group_by(Surname_Initial) %>%
+  summarise(
+    Mean_Avg_FP = mean(Avg_First_Pref, na.rm = TRUE),
+    N_Constituencies = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(Surname_Initial) %>%
+  mutate(
+    Cumulative_Mean = cumsum(Mean_Avg_FP)
+  )
+
+# Single combined plot
+ggplot(average_by_initial, aes(x = Surname_Initial)) +
+  geom_col(aes(y = Mean_Avg_FP), fill = "lightblue", alpha = 0.6) +
+  geom_line(aes(y = Cumulative_Mean, group = 1), 
+            color = "darkblue", linewidth = 1.5) +
+  geom_point(aes(y = Cumulative_Mean), 
+             color = "darkblue", size = 4) +
+  geom_text(aes(y = Cumulative_Mean, 
+                label = round(Cumulative_Mean, 0)),
+            vjust = -0.5, size = 3, color = "darkblue") +
+  labs(
+    title = "Cumulative First Preferences by Surname Initial",
+    subtitle = paste("Average across", length(constituencies), "constituencies"),
+    x = "Surname Initial (Alphabetical)",
+    y = "Average First Preferences per Candidate",
+ 
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    plot.title = element_text(size = 14, face = "bold"),
+    plot.subtitle = element_text(size = 12)
+  )
+
+# Save combined plot
+ggsave(
+  filename = "cumulative_all_constituencies_combined.png",
+  width = 12,
+  height = 7,
+  dpi = 300
+)
+
+# Save combined data
+write_csv(average_by_initial, "cumulative_all_constituencies_average.csv")
+
+# Print summary
+print(average_by_initial)
+```
+
+```{r}
+GE_full_Election <- read_csv(
+  "C:\\Users\\lilly\\Documents\\Count_1_fixed.csv",
+  locale = locale(encoding = "Latin1")
+)
+
+
+constituencies_to_analyse <- unique(GE_full_Election$`Constituency Name`)
+
+cat("Number of constituencies:", length(constituencies_to_analyse), "\n")
+
+
+all_constituency_data <- list()
+
+# Process each constituency
+for (const in constituencies_to_analyse) {
+  data_const <- GE_full_Election %>%
+    filter(`Constituency Name` == const, `Count Number` == 1)
+  
+  # Create ballot position based on alphabetical order
+  ballot_data <- data_const %>%
+    group_by(`Candidate Id`, `Candidate surname`, `Candidate First Name`) %>%
+    summarise(First_Preferences = sum(Votes, na.rm = TRUE), .groups = "drop") %>%
+    mutate(
+    
+      surname_norm = ifelse(
+        stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(`Candidate First Name`, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, `Candidate Id`) %>%
+    mutate(
+      Ballot_Position = row_number(),
+      Constituency = const
+    )
+  
+  all_constituency_data[[const]] <- ballot_data
+}
+
+# Combine all constituencies
+all_ballot_data <- bind_rows(all_constituency_data)
+
+
+total_by_position <- all_ballot_data %>%
+  group_by(Ballot_Position) %>%
+  summarise(
+    Total_Votes = sum(First_Preferences, na.rm = TRUE),
+    N_Constituencies = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(Ballot_Position) %>%
+  mutate(
+    Total_Cumulative = cumsum(Total_Votes)  # Cumulative of the totals!
+  )
+
+
+ggplot(total_by_position, aes(x = Ballot_Position)) +
+  geom_col(aes(y = Total_Votes), fill = "lightblue", alpha = 0.6) +
+  geom_line(aes(y = Total_Cumulative, group = 1), 
+            color = "darkblue", linewidth = 1.5) +
+  geom_point(aes(y = Total_Cumulative), 
+             color = "darkblue", size = 3) +
+  geom_text(aes(y = Total_Cumulative, 
+                label = comma(round(Total_Cumulative, 0))),
+            vjust = -0.5, size = 2.5, color = "darkblue") +
+  scale_y_continuous(labels = comma) +
+  labs(
+    title = "Cumulative First Preference Votes by Ballot Position",
+    x = "Ballot Position (Alphabetical Order)",
+    y = "Total First Preference Votes",
+    caption = "Bars = Total votes per position | Line = Cumulative total across all positions"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 12, hjust = 0.5),
+    plot.caption = element_text(size = 9, hjust = 0)
+  )
+
+# Save plot
+ggsave(
+  filename = "cumulative_ballot_position_corrected.png",
+  width = 12,
+  height = 7,
+  dpi = 300
+)
+
+# Save data
+write_csv(total_by_position, "cumulative_ballot_position_corrected.csv")
+
+# Print summary
+cat("\n=== Summary Statistics ===\n")
+print(total_by_position)
+
+cat("\nTotal votes across all positions:", 
+    comma(sum(total_by_position$Total_Votes)), "\n")
+cat("Maximum ballot position:", max(total_by_position$Ballot_Position), "\n")
+```
+
+
+
+```{r}
+#used to see the length of the consitencys
+GE_full_Election <- read_csv("C:\\Users\\lilly\\Downloads\\General_Election_2020_count.csv")
+
+library(dplyr)
+
+candidate_counts <- GE_full_Election %>%
+  group_by(`Constituency Name`) %>%
+  summarise(
+    Num_Candidates = n_distinct(`Candidate Id`)
+  ) %>%
+  arrange(Num_Candidates)
+
+print(candidate_counts)
+```
+
+ 
+
+```{r}
+ 
+
+# Meath_w 9 candidates
+Meath_w<- read.csv("C:\\Users\\lilly\\Documents\\Meath_W.csv",fileEncoding = "Latin1"
+) #to stop error of the fadas not being read properly
+Meath_w
+total_candidates <- Meath_w %>%
+  filter(`Count.Number` == 1) %>%
+  distinct(`Candidate.Id`) %>%
+  nrow()
+total_candidates
+# First preference data
+FullElection1 <- Meath_w %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`,
+           `Candidate.First.Name`,
+           `Candidate.surname`,
+            ) %>%     
+  summarise(
+    First_Preferences = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Candidate.Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+  ) %>%
+  arrange(`Candidate.surname`) %>%   # <- order by surname
+  mutate(
+    Candidate_Name = factor(Candidate.Name, levels = Candidate.Name),  # <- ordered factor
+    Normalised_FP = First_Preferences / total_candidates
+  )
+
+# Plot: Candidate names on X-axis, normalised vote on Y
+ggplot(FullElection1,
+       aes(x =(Candidate.Name),
+           y = Normalised_FP)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Normalised_FP, 3)),
+            vjust = -0.3, size = 3) +
+  labs(
+    title = "Normalised First Preferences by Candidate",
+    x = "Candidate Name",
+    y = "Normalised First Preference Vote"
+  ) +
+  theme_minimal() 
+  theme(axis_text_x = element_text(angle = 60, hjust = 1))
+
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Wicklow 20 candidates
+Wicklow<- read.csv("C:\\Users\\lilly\\Documents\\Wicklow.csv",fileEncoding = "Latin1"
+)
+
+total_candidates <- Wicklow %>%
+  filter(`Count.Number` == 1) %>%
+  distinct(`Candidate.Id`) %>%
+  nrow()
+
+# First preference data
+FullElection <- Wicklow %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`,
+           `Candidate.First.Name`,
+           `Candidate.surname`,
+            ) %>%     
+  summarise(
+    First_Preferences = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Candidate_Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+  ) %>%
+  arrange(`Candidate.surname`) %>%   # <- order by surname
+  mutate(
+    Candidate_Name = factor(Candidate_Name, levels = Candidate_Name),  # <- ordered factor
+    Normalised_FP = First_Preferences / total_candidates
+  )
+
+# Plot: Candidate names on X-axis, normalised vote on Y
+ggplot(FullElection,
+       aes(x =(Candidate_Name),
+           y = Normalised_FP)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Normalised_FP, 3)),
+            vjust = -0.3, size = 3) +
+  labs(
+    title = "Normalised First Preferences by Candidate",
+    x = "Candidate Name",
+    y = "Normalised First Preference Vote"
+  ) +
+  theme_minimal()   +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+```{r}
+#Spearman code
+Meath_w_corr <- Meath_w %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`, `Candidate.surname`) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  arrange(`Candidate.surname`) %>%
+  mutate(Surname_Rank = row_number())
+
+cor.test(Meath_w_corr$Surname_Rank, 
+         Meath_w_corr$First_Pref,
+         method = "spearman")
+
+```
+
+```{r}
+Wicklow_corr <- Wicklow %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`, `Candidate.surname`) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  arrange(`Candidate.surname`) %>%
+  mutate(Surname_Rank = row_number())
+
+cor.test(Wicklow_corr$Surname_Rank, 
+         Wicklow_corr$First_Pref,
+         method = "spearman")
+```
+
+Across the full general election dataset, candidates with surnames earlier in the alphabet received significantly higher normalised first-preference votes. The relationship is moderate  in size and statistically significant (ρ = –0.495, p = 0.015). But localised by 2 contitencys meath wicklow not signficant.
+
+```{r}
+ 
+
+# Count total candidates
+GalwayW <- read.csv("C:\\Users\\lilly\\Documents\\csv_election_data\\General_Election_GalwayWest.csv")
+total_candidates <- GalwayW %>%
+  filter(`Count.Number` == 1) %>%
+  distinct(`Candidate.Id`) %>%
+  nrow()
+
+# First preference data
+FullElection <- GalwayW %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`,
+           `Candidate.First.Name`,
+           `Candidate.surname`,
+            ) %>%     
+  summarise(
+    First_Preferences = sum(Votes, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Candidate_Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+  ) %>%
+  arrange(`Candidate.surname`) %>%   # <- order by surname
+  mutate(
+    Candidate_Name = factor(Candidate_Name, levels = Candidate_Name),  # <- ordered factor
+    Normalised_FP = First_Preferences / total_candidates
+  )
+
+# Plot: Candidate names on X-axis, normalised vote on Y
+ggplot(FullElection,
+       aes(x =(Candidate_Name),
+           y = Normalised_FP)) +
+  geom_col(fill = "darkgreen") +
+  geom_text(aes(label = round(Normalised_FP, 3)),
+            vjust = -0.3, size = 3) +
+  labs(
+    title = "Normalised First Preferences by Candidate",
+    x = "Candidate Name",
+    y = "Normalised First Preference Vote"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+```
+
+```{r}
+GalwayW_corr <- GalwayW %>%
+  filter(`Count.Number` == 1) %>%
+  group_by(`Candidate.Id`, `Candidate.surname`) %>%
+  summarise(First_Pref = sum(Votes), .groups = "drop") %>%
+  arrange(`Candidate.surname`) %>%
+  mutate(Surname_Rank = row_number())
+
+cor.test(GalwayW_corr$Surname_Rank, 
+         GalwayW_corr$First_Pref,
+         method = "spearman")
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+
+# Full dataset
+GE_full_Election <- read.csv("C:\\Users\\lilly\\Documents\\2020-05-27_general-election-2020-countdetails-csv_en.csv",fileEncoding = "Latin1")
+ 
+# Get list of constituencies
+constituencies <- unique(GE_full_Election$Constituency.Name)
+
+for (const in constituencies) {
+
+  # Subset data for one constituency at a time
+  data_const <- GE_full_Election %>%
+    filter(Constituency.Name == const)
+
+  # Total candidates (count 1 only)
+  total_candidates <- data_const %>%
+    filter(`Count.Number` == 1) %>%
+    distinct(`Candidate.Id`) %>%
+    nrow()
+
+  # First preference data
+  FullElection <- data_const %>%
+    filter(`Count.Number` == 1) %>%
+    group_by(
+      `Candidate.Id`,
+      `Candidate.First.Name`,
+      `Candidate.surname`
+    ) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      Candidate_Name = paste(`Candidate.First.Name`, `Candidate.surname`)
+    ) %>%
+    arrange(`Candidate.surname`) %>%
+    mutate(
+      Candidate_Name = factor(Candidate_Name, levels = Candidate_Name),
+      Normalised_FP = First_Preferences / total_candidates
+    )
+
+  # Plot
+  p <- ggplot(FullElection,
+              aes(x = Candidate_Name,
+                  y = Normalised_FP)) +
+    geom_col(fill = "darkgreen") +
+    geom_text(
+      aes(label = round(Normalised_FP, 3)),
+      vjust = -0.3,
+      size = 3
+    ) +
+    labs(
+      title = paste("Normalised First Preferences –", const),
+      x = "Candidate Name",
+      y = "Normalised First Preference Vote"
+    ) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 60, hjust = 1))
+
+  print(p)    # prints each plot inside a loop
+}
+
+```
+
+```{r}
+library(dplyr)
+constituencies <- unique(GE_full_Election$Constituency.Name)
+
+cor_results <- list()
+
+for (const in constituencies) {
+
+  data_const <- GE_full_Election %>%
+    filter(
+      Constituency.Name == const,
+      `Count.Number` == 1
+    )
+
+  
+  corr_data <- data_const %>%
+    group_by(`Candidate.Id`, `Candidate.surname`) %>%
+    summarise(
+      First_Pref = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    arrange(`Candidate.surname`) %>%
+    mutate(Surname_Rank = row_number())
+
+  test <- cor.test(
+    corr_data$Surname_Rank,
+    corr_data$First_Pref,
+    method = "spearman"
+  )
+
+  cor_results[[const]] <- data.frame(
+    Constituency = const,
+    Spearman_rho = unname(test$estimate),
+    p_value = test$p.value
+  )
+}
+cor_results_df <- bind_rows(cor_results)
+cor_results_df
+```
+
+ 
+
+```{r}
+ggplot(cor_results_df, aes(x = Spearman_rho)) +
+  geom_histogram(bins = 15, fill = "darkgreen") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(
+    title = "Distribution of Alphabetical Effects by Constituency",
+    x = "Spearman rho",
+    y = "Number of Constituencies"
+  ) +
+  theme_minimal()
+```
+
+ 
+This is the analysis done by ballot postion focusing on the 20 and 15 candidates
+
+
+```{r}
+library(lmtest)
+library(sandwich)
+
+# Find constituencies with exactly 15 candidates
+constituency_counts <- GE_full_Election_p %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Constituency Name`) %>%
+  summarise(Num_Candidates = n_distinct(`Candidate Id`), .groups = "drop")
+
+constituencies_15 <- constituency_counts %>%
+  filter(Num_Candidates == 15) %>%
+  pull(`Constituency Name`)
+
+ 
+cat("Number of constituencies:", length(constituencies_15), "\n")
+cat("Constituencies:\n")
+print(constituencies_15)
+
+# Create dataset for these constituencies only
+data_15_list <- list()
+
+for (const in constituencies_15) {
+  data_const <- GE_full_Election_p %>% filter(`Constituency Name` == const)
+  
+  ballot_data <- data_const %>%
+    filter(`Count Number` == 1) %>%
+    group_by(`Candidate Id`, `Candidate surname`, `Candidate First Name`) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Normalize Mc to MAC~ for ballot ordering
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(`Candidate First Name`, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, `Candidate Id`) %>%
+    mutate(
+      Ballot_Position = row_number(),
+      Constituency_Name = const
+    )
+  
+  data_15_list[[const]] <- ballot_data
+}
+
+# Combine all 15-candidate constituencies
+data_15 <- bind_rows(data_15_list) %>%
+  group_by(Constituency_Name) %>%
+  mutate(
+    Total_FP_Constituency = sum(First_Preferences, na.rm = TRUE),
+    FP_Share = (First_Preferences / Total_FP_Constituency) * 100
+  ) %>%
+  ungroup()
+  position_summary <- data_15 %>%
+    group_by(Ballot_Position) %>%
+    summarise(
+      N = n(),
+      Avg_First_Pref = mean(First_Preferences, na.rm = TRUE),
+      Avg_FP_Share = mean(FP_Share, na.rm = TRUE),  #across all constituencies, for candidates at the same ballot position.
+      Total_Votes_Position = sum(First_Preferences, na.rm = TRUE),
+      SE_FP_Share = sd(FP_Share, na.rm = TRUE) / sqrt(n()),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      CI_Lower = Avg_FP_Share - 1.96 * SE_FP_Share,
+      CI_Upper = Avg_FP_Share + 1.96 * SE_FP_Share
+    )
+
+ 
+     print(position_summary, row.names = FALSE)
+
+```
+Fp share =F.p/total votes for each consit 7% per consit average over the 8 avg first prefernce 
+aveg fp is the mean for all candidates in the same position
+aveg fp share mean of F.p/total votes for each ballot position by getting it for every candate then getting average.
+A one-place move down the ballot is associated with a x percentage-point change in first-preference vote share, on average.
+average/total check
+
+
+
+```{r}
+model_simple <- lm(FP_Share ~ Ballot_Position, data = data_15) #FP share nomalised by nuber if first prefernce/total vote in constitency each one
+
+summary(model_simple)
+ library(moderndive)
+get_regression_table(model_simple)
+ggplot(data_15, aes(x = Ballot_Position, y = FP_Share, color = Constituency_Name)) +
+  geom_point(alpha = 0.7, size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # linear trend for all data
+  labs(
+    title = "FP Share vs Ballot Position",
+    subtitle = "Each color = a constituency",
+    x = "Ballot Position",
+    y = "First Preference Share (%)",
+    color = "Constituency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10),
+    legend.position = "right"
+  )
+model_simple
+
+data_15 <- data_15 %>%
+  mutate(
+    fitted = fitted(model_simple),
+    residual = residuals(model_simple)
+  )
+
+# Plot residuals vs fitted
+ggplot(data_15, aes(x = fitted, y = residual)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") + 
+  labs(x = "Fitted Values", y = "Residual", 
+       title = "Residuals vs Fitted Values") + 
+  theme_bw()
+
+model_simple2 = lm(FP_Share ~ Ballot_Position + I(Ballot_Position^2) + I(Ballot_Position^3), data=data_15)
+summary(model_simple2)
+
+model_simple_log <- lm(log(FP_Share) ~  Ballot_Position, data = data_15)
+get_regression_table(model_simple_log)
+ggplot(data_15, aes(x =Ballot_Position, y = log(FP_Share)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method='lm') +
+  labs(title = "FP_share vs Ballot position"))
+model_simple_log 
+data_15 <- data_15 %>%
+  mutate(
+    fitted_log = fitted(model_simple_log),
+    residual_log = residuals(model_simple_log)
+  )
+
+ggplot(data_15, aes(x = fitted_log, y = residual_log)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") + 
+  labs(
+    x = "Fitted Values (log FP Share)",
+    y = "Residuals",
+    title = "Residuals vs Fitted Values (Log Model)"
+  ) +
+  theme_bw()
+
+cat("\nR-squared:", summary(model_simple)$r.squared, "\n")
+
+ 
+# Categorical Position Model
+ 
+data_15 <- data_15 %>%
+  mutate(Ballot_Position_Factor = factor(Ballot_Position))
+
+model_categorical <- lm(FP_Share ~ Ballot_Position_Factor, data = data_15)
+summary(model_categorical)
+cat("\nR-squared:", summary(model_categorical)$r.squared, "\n")
+
+ 
+ggplot(position_summary, aes(x = Ballot_Position, y = Avg_FP_Share)) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(size = 3, color = "steelblue") +
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                width = 0.3, color = "steelblue") +
+  geom_hline(yintercept = 100/15, linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = 1:15) +
+  labs(
+    title = "Average First Preference Vote Share by Ballot Position",
+    subtitle = paste("Constituencies with exactly 15 candidates (n =", length(constituencies_15), ")"),
+    x = "Ballot Position",
+    y = "Average Vote Share (%)",
+    caption = "Red dashed line = equal share (6.67%)\nError bars show 95% confidence intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10)
+  )
+
+# 
+write.csv(data_15, "fifteen_candidate_constituencies.csv", row.names = FALSE)
+
+```
+
+```{r}
+model_simple4 <- lm(First_Preferences  ~ Ballot_Position, data = data_15) #FP share normalised by number if first prefernce/total vote in constituency each one
+
+summary(model_simple4)
+ library(moderndive)
+get_regression_table(model_simple4)
+ggplot(data_15, aes(x = Ballot_Position, y = First_Preferences, color = Constituency_Name)) +
+  geom_point(alpha = 0.7, size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # linear trend for all data
+  labs(
+    title = "FP Share vs Ballot Position",
+    subtitle = "Each color = a constituency",
+    x = "Ballot Position",
+    y = "First Preference Share ",
+    color = "Constituency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10),
+    legend.position = "right"
+  )
+model_simple4
+```
+
+
+
+
+
+
+Exploring some methods used in ST4102 to improve fit 
+
+```{r}
+ data_15  <- data_15 %>%
+  mutate(Ballot_Position4 = ifelse(Ballot_Position > 4, Ballot_Position - 4, 0),
+         Ballot_Position8 = ifelse(Ballot_Position > 8, Ballot_Position - 8, 0))
+bp_spline <- lm(FP_Share ~ Ballot_Position + Ballot_Position4 + Ballot_Position8, data = data_15)
+get_regression_table(bp_spline)
+```
+
+```{r}
+data_15 %>% mutate(pred = predict(bp_spline)) %>%
+  ggplot(aes(x=Ballot_Position, y = FP_Share)) + 
+  geom_point() + theme_bw() + 
+  geom_line(aes(y=pred), colour = "green", lwd = 2)
+```
+
+
+```{r}
+smr <- loess(FP_Share ~ Ballot_Position, data= data_15)
+ggplot(data_15) +
+    geom_point(aes(x= Ballot_Position,y= FP_Share)) +
+    ggtitle("Chang in FP vs Ballot position (Loess, nge inspan=0.75)") +
+    geom_line(aes(x=Ballot_Position, y=fitted(smr)),
+      col='blue')
+
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# 1. Fit LOESS to explore the pattern
+loess_fit <- loess(FP_Share ~ Ballot_Position, data = data_15)
+
+# 
+ggplot(data_15, aes(x = Ballot_Position, y = FP_Share)) +
+  geom_point(alpha = 0.3, color = "gray50") +
+  geom_line(aes(y = fitted(loess_fit)), color = "blue", linewidth = 1.5) +
+  geom_smooth(method = "loess", se = TRUE, color = "red", fill = "pink", alpha = 0.2) +
+  scale_x_continuous(breaks = 1:15) +
+  labs(
+    title = "LOESS Fit: FP Share vs Ballot Position",
+    x = "Ballot Position",
+    y = "First Preference Share (%)"
+  ) +
+  theme_minimal()
+ 
+data_15 <- data_15 %>%
+   mutate(
+    BP_knot_4 = pmax(Ballot_Position - 4, 0),
+    BP_knot_10 = pmax(Ballot_Position - 8, 0),
+    BP_knot_12 =pmax(Ballot_Position - 12, 0)
+  )
+
+# Fit spline based on LOESS insight
+spline_model <- lm(FP_Share ~ Ballot_Position + BP_knot_10 +BP_knot_4 +BP_knot_12, 
+                   data = data_15)
+
+summary(spline_model)
+
+# 4. Compare LOESS vs your spline model
+pred_data <- data.frame(Ballot_Position = seq(1, 15, by = 0.1)) %>%
+  mutate(
+    BP_knot_4 = pmax(Ballot_Position - 4, 0),
+    BP_knot_10 = pmax(Ballot_Position - 8, 0),
+    BP_knot_12 =pmax(Ballot_Position - 12, 0)
+  )
+
+pred_data$loess_pred <- predict(loess_fit, newdata = pred_data)
+pred_data$spline_pred <- predict(spline_model, newdata = pred_data)
+
+ 
+#  Get your p-values from the spline model
+library(moderndive)
+get_regression_table(spline_model)
+
+#  Test overall significance with F-test
+linear_model <- lm(FP_Share ~ Ballot_Position, data = data_15)
+anova(linear_model, spline_model)
+```
+Shows lack of a quantitative effect of ballot order, pooling candidated would mean as the ballot positions increase 9-15 then no candidate 9 in 10 etc so would be confirmation bias without it being normalised. idea can normalise as a precentage maybe 
+ 
+
+So this analysis includes doing Linear regression, polynonmial regression methods from Modern stats lecture, comparing the position 1 vs position 2-15, didnt see great improvement in p values 
+```{r}
+model_simple <- lm(FP_Share ~ Ballot_Position, data = data_15)
+coeftest(
+  model_simple,
+  vcov = vcovCL(model_simple, cluster = ~ Constituency_Name)
+)
+summary(model_simple)
+cat("\nR-squared:", summary(model_simple)$r.squared, "\n")
+
+
+data_15 <- data_15 %>%
+  mutate(Ballot_Position_Factor = factor(Ballot_Position))
+
+
+ model_categorical<- lm(FP_Share ~ Ballot_Position_Factor, data = data_15)
+coeftest(
+ model_categorical,
+  vcov = vcovCL(model_categorical, cluster = ~ Constituency_Name)
+)
+summary(model_categorical)
+ 
+cat("\nR-squared:", summary(model_categorical)$r.squared, "\n")
+
+
+ggplot(position_summary, aes(x = Ballot_Position, y = Avg_FP_Share)) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(size = 3, color = "steelblue") +
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                width = 0.3, color = "steelblue") +
+  geom_hline(yintercept = 100/15, linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = 1:15) +
+  labs(
+    title = "Average First Preference Vote Share by Ballot Position",
+    x = "Ballot Position",
+    y = "Average Vote Share (%)",
+    caption = "Red dashed line = equal share (6.67%)\nError bars show 95% confidence intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10)
+  )
+
+individual_results <- list() #so the effect on each constituency seperately
+
+for (i in seq_along(constituencies_15)) {
+  const <- constituencies_15[i]
+  const_data <- data_15 %>% filter(Constituency_Name == const)
+  
+  # Linear model for this constituency
+  model_const <- lm(FP_Share ~ Ballot_Position, data = const_data) 
+  
+  # Save results
+  individual_results[[i]] <- data.frame(
+    Constituency = const,  
+    Coefficient = coef(model_const)["Ballot_Position"],
+    Std_Error = summary(model_const)$coefficients["Ballot_Position", "Std. Error"],
+    T_Value = summary(model_const)$coefficients["Ballot_Position", "t value"],
+    P_Value = summary(model_const)$coefficients["Ballot_Position", "Pr(>|t|)"],
+    R_Squared = summary(model_const)$r.squared,
+    N = nrow(const_data)
+  )
+}
+
+# Combine all into one data frame
+individual_df <- bind_rows(individual_results)
+ 
+ 
+print(individual_df %>% 
+        select(Constituency, Coefficient, Std_Error, P_Value, R_Squared), 
+      row.names = FALSE, digits = 4)
+mean(individual_df$Coefficient < 0, na.rm = TRUE)
+```
+
+```{r}
+# Individual constituency analysis
+ggplot(data_15, aes(x = Ballot_Position, y = First_Preferences)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkgreen") +
+  facet_wrap(~ Constituency_Name, scales = "free_y") +
+  labs(
+    title = "First Preferences by Constituency",
+    x = "Ballot Position",
+    y = "Raw First Preferences"
+  ) +
+  theme_minimal()
+ggplot(data_12, aes(x = Ballot_Position, y = First_Preferences)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkgreen") +
+  facet_wrap(~ Constituency_Name, scales = "free_y") +
+  labs(
+    title = "First Preferences by Constituency",
+    x = "Ballot Position",
+    y = "Raw First Preferences"
+  ) +
+  theme_minimal()
+
+```
+
+
+Coifficent is the expected change in FP share per step down the ballot for that constituency
+In 6/8 of constituencies, candidates lower on the ballot received fewer first-preference votes. Coefficients in individual regressions are generally not statistically significant due to possible small sample sizes (N=15), but the direction is consistently negative.
+ Should i be normalising by total votes in each contitency
+
+Doing it for 12 candidates as a comparsion#
+
+```{r}
+# Find constituencies with exactly 12 candidates
+constituency_counts <- GE_full_Election_p %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Constituency Name`) %>%
+  summarise(Num_Candidates = n_distinct(`Candidate Id`), .groups = "drop")
+
+constituencies_12 <- constituency_counts %>%
+  filter(Num_Candidates == 12) %>%
+  pull(`Constituency Name`)
+
+ 
+cat("Number of constituencies:", length(constituencies_15), "\n")
+cat("Constituencies:\n")
+print(constituencies_12)
+
+# Create dataset for these constituencies only
+data_12_list <- list()
+
+for (const in constituencies_12) {
+  data_const <- GE_full_Election_p %>% filter(`Constituency Name` == const)
+  
+  ballot_data <- data_const %>%
+    filter(`Count Number` == 1) %>%
+    group_by(`Candidate Id`, `Candidate surname`, `Candidate First Name`) %>%
+    summarise(
+      First_Preferences = sum(Votes, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      # Normalize Mc to MAC~ for ballot ordering
+      surname_norm = ifelse(
+        stringi::stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stringi::stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(`Candidate First Name`, "Latin-ASCII"))
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, `Candidate Id`) %>%
+    mutate(
+      Ballot_Position = row_number(),
+      Constituency_Name = const
+    )
+  
+  data_12_list[[const]] <- ballot_data
+}
+
+# Combine all 15-candidate constituencies
+data_12 <- bind_rows(data_12_list) %>%
+  group_by(Constituency_Name) %>%
+  mutate(
+    Total_FP_Constituency = sum(First_Preferences, na.rm = TRUE),
+    FP_Share = (First_Preferences / Total_FP_Constituency) * 100
+  ) %>%
+  ungroup()
+  position_summary <- data_12 %>%
+    group_by(Ballot_Position) %>%
+    summarise(
+      N = n(),
+      Avg_First_Pref = mean(First_Preferences, na.rm = TRUE),
+      Avg_FP_Share = mean(FP_Share, na.rm = TRUE),  #across all constituencies, for candidates at the same ballot position.
+      Total_Votes_Position = sum(First_Preferences, na.rm = TRUE),
+      SE_FP_Share = sd(FP_Share, na.rm = TRUE) / sqrt(n()),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      CI_Lower = Avg_FP_Share - 1.96 * SE_FP_Share,
+      CI_Upper = Avg_FP_Share + 1.96 * SE_FP_Share
+    )
+
+ 
+     print(position_summary, row.names = FALSE)
+
+```
+ 
+
+```{r}
+model_simple12 <- lm(FP_Share ~ Ballot_Position, data = data_12) #FP share nomalised by nuber if first prefernce/total vote in constitency each one
+
+summary(model_simple12)
+ library(moderndive)
+get_regression_table(model_simple12)
+ggplot(data_12, aes(x = Ballot_Position, y = FP_Share, color = Constituency_Name)) +
+  geom_point(alpha = 0.7, size = 3) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +  # linear trend for all data
+  labs(
+    title = "FP Share vs Ballot Position",
+    subtitle = "Each color = a constituency",
+    x = "Ballot Position",
+    y = "First Preference Share (%)",
+    color = "Constituency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10),
+    legend.position = "right"
+  )
+model_simple
+
+data_12 <- data_12 %>%
+  mutate(
+    fitted = fitted(model_simple12),
+    residual = residuals(model_simple12)
+  )
+
+# Plot residuals vs fitted
+ggplot(data_12, aes(x = fitted, y = residual)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") + 
+  labs(x = "Fitted Values", y = "Residual", 
+       title = "Residuals vs Fitted Values") + 
+  theme_bw()
+
+model_simple12_2 = lm(FP_Share ~ Ballot_Position + I(Ballot_Position^2) + I(Ballot_Position^3), data=data_15)
+summary(model_simple12_2)
+
+model_simple_log12 <- lm(log(FP_Share) ~  Ballot_Position, data = data_12)
+get_regression_table(model_simple_log)
+ggplot(data_12, aes(x =Ballot_Position, y = log(FP_Share)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method='lm') +
+  labs(title = "FP_share vs Ballot position"))
+model_simple_log12 
+data_12 <- data_12 %>%
+  mutate(
+    fitted_log = fitted(model_simple_log12),
+    residual_log = residuals(model_simple_log12)
+  )
+
+ggplot(data_12, aes(x = fitted_log, y = residual_log)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") + 
+  labs(
+    x = "Fitted Values (log FP Share)",
+    y = "Residuals",
+    title = "Residuals vs Fitted Values (Log Model)"
+  ) +
+  theme_bw()
+
+cat("\nR-squared:", summary(model_simple12_2)$r.squared, "\n")
+
+ 
+# Categorical Position Model
+ 
+data_12 <- data_12 %>%
+  mutate(Ballot_Position_Factor = factor(Ballot_Position))
+
+model_categorical12 <- lm(FP_Share ~ Ballot_Position_Factor, data = data_15)
+summary(model_categorical12)
+cat("\nR-squared:", summary(model_categorical12)$r.squared, "\n")
+
+ 
+ggplot(position_summary, aes(x = Ballot_Position, y = Avg_FP_Share)) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(size = 3, color = "steelblue") +
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                width = 0.3, color = "steelblue") +
+  geom_hline(yintercept = 100/15, linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = 1:15) +
+  labs(
+    title = "Average First Preference Vote Share by Ballot Position",
+    x = "Ballot Position",
+    y = "Average Vote Share (%)",
+    caption = "Red dashed line = equal share (6.67%)\nError bars show 95% confidence intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10)
+  )
+
+# 
+write.csv(data_12, "twelve_candidate_constituencies.csv", row.names = FALSE)
+```
+
+```{r}
+#difference these one are clustered by constituency to compute std errors 
+model_simple_12 <- lm(FP_Share ~ Ballot_Position, data = data_12)
+coeftest(
+  model_simple_12,
+  vcov = vcovCL(model_simple_12, cluster = ~ Constituency_Name)
+)
+summary(model_simple_12)
+cat("\nR-squared:", summary(model_simple_12)$r.squared, "\n")
+
+
+data_12 <- data_12 %>%
+  mutate(Ballot_Position_Factor = factor(Ballot_Position))
+
+
+ model_categorical_12<- lm(FP_Share ~ Ballot_Position_Factor, data = data_12)
+coeftest(
+ model_categorical_12,
+  vcov = vcovCL(model_categorical_12, cluster = ~ Constituency_Name)
+)
+summary(model_categorical_12)
+ 
+cat("\nR-squared:", summary(model_categorical_12)$r.squared, "\n")
+
+
+ggplot(position_summary, aes(x = Ballot_Position, y = Avg_FP_Share)) +
+  geom_line(color = "steelblue", size = 1) +
+  geom_point(size = 3, color = "steelblue") +
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                width = 0.3, color = "steelblue") +
+  geom_hline(yintercept = 100/15, linetype = "dashed", color = "red") +
+  scale_x_continuous(breaks = 1:15) +
+  labs(
+    title = "Average First Preference Vote Share by Ballot Position",
+    x = "Ballot Position",
+    y = "Average Vote Share (%)",
+    caption = "Red dashed line = equal share (6.67%)\nError bars show 95% confidence intervals"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    axis.text.x = element_text(size = 10)
+  )
+
+individual_results <- list() #so the effect on each constituency seperately
+
+for (i in seq_along(constituencies_12)) {
+  const <- constituencies_12[i]
+  const_data <- data_12 %>% filter(Constituency_Name == const)
+  
+  # Linear model for this constituency
+  model_const <- lm(FP_Share ~ Ballot_Position, data = const_data) 
+  
+  # Save results
+  individual_results[[i]] <- data.frame(
+    Constituency = const,  
+    Coefficient = coef(model_const)["Ballot_Position"],
+    Std_Error = summary(model_const)$coefficients["Ballot_Position", "Std. Error"],
+    T_Value = summary(model_const)$coefficients["Ballot_Position", "t value"],
+    P_Value = summary(model_const)$coefficients["Ballot_Position", "Pr(>|t|)"],
+    R_Squared = summary(model_const)$r.squared,
+    N = nrow(const_data)
+  )
+}
+
+# Combine all into one data frame
+individual_df <- bind_rows(individual_results)
+ 
+ 
+print(individual_df %>% 
+        select(Constituency, Coefficient, Std_Error, P_Value, R_Squared), 
+      row.names = FALSE, digits = 4)
+mean(individual_df$Coefficient < 0, na.rm = TRUE)
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringi)
+
+# 1. Identify constituencies with 9-15 candidates
+constituency_counts <- GE_full_Election_p %>%
+  filter(`Count Number` == 1) %>%
+  group_by(`Constituency Name`) %>%
+  summarise(Num_Candidates = n_distinct(`Candidate Id`), .groups = "drop")
+
+constituencies_9_to_15 <- constituency_counts %>%
+  filter(Num_Candidates >= 9 & Num_Candidates <= 15)
+
+print(constituencies_9_to_15)
+
+# 2. Create dataset for 9-15 candidates
+data_9_to_15_list <- list()
+
+for (i in 1:nrow(constituencies_9_to_15)) {
+  const <- constituencies_9_to_15$`Constituency Name`[i]
+  n_cand <- constituencies_9_to_15$Num_Candidates[i]
+  
+  data_const <- GE_full_Election_p %>% 
+    filter(`Constituency Name` == const)
+  
+  ballot_data <- data_const %>%
+    filter(`Count Number` == 1) %>%
+    group_by(`Candidate Id`, `Candidate surname`, `Candidate First Name`) %>%
+    summarise(First_Preferences = sum(Votes, na.rm = TRUE), .groups = "drop") %>%
+    mutate(
+      surname_norm = ifelse(
+        stri_detect_regex(`Candidate surname`, "^Mc\\s*", case_insensitive = TRUE),
+        stri_replace_first_regex(`Candidate surname`, "^Mc\\s*", "MAC~", 
+                                case_insensitive = TRUE),
+        `Candidate surname`
+      ),
+      surname_sort_key = toupper(stri_trans_general(surname_norm, "Latin-ASCII")),
+      firstname_sort_key = toupper(stri_trans_general(`Candidate First Name`, 
+                                                      "Latin-ASCII"))
+    ) %>%
+    arrange(surname_sort_key, firstname_sort_key, `Candidate Id`) %>%
+    mutate(
+      Ballot_Position = row_number(),
+      Constituency_Name = const,
+      Total_Candidates = n_cand
+    )
+  
+  data_9_to_15_list[[const]] <- ballot_data
+}
+```
+Pooled analysis is it more confirmination bias?
+```{r}
+data_9_to_15 <- bind_rows(data_9_to_15_list) %>%
+  group_by(Constituency_Name) %>%
+  mutate(
+    Total_FP_Constituency = sum(First_Preferences, na.rm = TRUE),
+    FP_Share = (First_Preferences / Total_FP_Constituency) * 100
+  ) %>%
+  ungroup()
+model_pooled <- lm(FP_Share ~ Ballot_Position, data = data_9_to_15)
+summary(model_pooled)
+
+coef_sum <- summary(model_pooled)$coefficients
+t_stat <- coef_sum["Ballot_Position", "t value"]
+df <- model_pooled$df.residual
+```
+```{r}
+ggplot(data_9_to_15, aes(x = Ballot_Position, y = FP_Share)) +
+  geom_point(alpha = 0.3, color = "steelblue") +
+  geom_smooth(method = "lm", color = "darkred", se = TRUE, linewidth = 1.2) +
+  labs(
+    title = "Ballot Position Effect on First Preference Vote Share",
+    x = "Ballot Position (Alphabetical Order)",
+    y = "First Preference Vote Share (%)",
+  ) +
+  theme_minimal() + theme(plot.title = element_text(face = "bold", size = 14)
+  ) 
+  
+
+
+```
+
+ 

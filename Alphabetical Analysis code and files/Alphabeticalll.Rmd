@@ -16,7 +16,7 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r cars}
- 
+library(tidyr) 
 library(dplyr)
 library(ggplot2)
 library(stringi)
@@ -31,7 +31,7 @@ GE_full_Election <- read_csv(
   locale = locale(encoding = "Latin1") #Reads fadas 
 )
 
-# Rename columns for convenience
+# Rename columns 
 GE_full_Election <- GE_full_Election %>%
   rename(
     Candidate_surname = `Candidate surname`,
@@ -175,9 +175,6 @@ So in summary they are not that different when use the first preference vote, Me
 SD: 0.2290812 
 N constituencies: 39 
 
- 
-
- 
 
 ```{r}
  
@@ -252,7 +249,6 @@ Difficulty finding the total votes to read
 
 
 ```{r}
- 
 # Get all unique candidates with their election status
 candidate_data <- GE_full_Election %>%
   group_by(Candidate_Id, Candidate_surname) %>%
@@ -325,11 +321,51 @@ p2 <- ggplot(surname_summary, aes(x = First_Letter, y = Elected_TDs)) +
 print(p1)
 print(p2)
 
- 
-
-
-
 ```
+```{r}
+ 
+surname_summary_long <- surname_summary %>%
+  select(First_Letter, All_Candidates, Elected_TDs, Pct_All, Pct_Elected) %>%
+  pivot_longer(
+    cols = c(All_Candidates, Elected_TDs),
+    names_to = "Category",
+    values_to = "Count"
+  ) %>%
+  mutate(
+    Percentage = ifelse(Category == "All_Candidates", Pct_All, Pct_Elected),
+    Category = ifelse(Category == "All_Candidates", "All Candidates", "Elected TDs")
+  )
+
+# Check the transformed data
+print("Transformed surname_summary_long:")
+print(head(surname_summary_long))
+print(colnames(surname_summary_long))
+
+# Now plot
+ggplot(surname_summary_long, aes(x = First_Letter, y = Count, fill = Category)) +
+  geom_col(position = "dodge", width = 0.7) +
+  geom_text(aes(label = sprintf("%d\n(%.1f%%)", Count, Percentage)), 
+            position = position_dodge(width = 0.7),
+            vjust = -0.3, 
+            size = 2.5) +
+  scale_fill_manual(values = c("All Candidates" = "steelblue", 
+                                "Elected TDs" = "darkgreen")) +
+  labs(
+    title = "Candidate Distribution by Surname Initial",
+    subtitle = "All Candidates vs Elected TDs",
+    x = "Surname Initial",
+    y = "Number of Candidates",
+    fill = ""
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 10),
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    plot.subtitle = element_text(size = 11, hjust = 0.5),
+    legend.position = "top"
+  )
+```
+
 
 ```{r}
 comparison_table <- surname_summary %>% 
@@ -352,7 +388,7 @@ print(comparison_table, row.names = FALSE)
 
  
 ```
-
+Looking at the 2 graphs be dectable wvery election, 
 ```{r}
 # Check C surnames
 
@@ -500,7 +536,8 @@ These  numbers  are  rather  large,  considering  the  share  of  votes  a  cand
 so what i want to do is using the previously divion with parties and now the known incumbracy want with Votesijt, first prefernce share total with the constitenucy with Ballot postion used a dummy variable 1-9 ols specfication. 
 So need to combine first prefernce votes need the 1-9 ballot postion. 
 other (clustered) as candidates are running against each other at a constituency 
-level.  Failure  to account  for error clustering leads  to under‐estimated  standard 
+level. 
+Failure  to account  for error clustering leads  to under‐estimated  standard 
 errors and consequently  the over‐rejection of hypothesis  tests. This paper uses 
 the  multi‐way  clustering  (Cameron,  Gelbach,  and  Miller,  2006)
 1st POSITION 655.0*** 507.9*** 507.9*** 498.4**
@@ -779,7 +816,7 @@ print(cluster_se)
 
 ```
 When limited to 9 ballot positions,   Ballot_Position_Factor2   -1.6204 which does fit range in regans paper 0.0549358 .
-
+The range is from -1.62 to -0.27730
 
 ```{r}
 cat("Incumbents:", sum(regression_data$Incumbent, na.rm = TRUE), "\n")
@@ -799,8 +836,6 @@ cat("\n\nRegression dataset exported to: regression_data.csv")
 
 
 ```{r}
-
-# Create regression dataset using your existing ballot position logic
 regression_data_list <- list()
 
 for (const in constituencies) {
@@ -933,4 +968,5 @@ ballot_pval <- cluster_se_linear["Ballot_Position", "Pr(>|t|)"]
 
 ```
 The ballot order effect exists but is non-linear it's more concentrated in the top positions , not spread evenly across all positions. 
-Attempt 2 way clustering next on paper  candidate and constituency. 
+ 
+
