@@ -1,0 +1,790 @@
+---
+title: "Synethic"
+author: "Jessica McGreevy"
+date: "2025-11-03"
+output: html_document
+---
+Requires Synthetic_3.csv, Synthetic_multiple.csv and Synthetic_modified.csv
+
+```{r }
+library(readr)
+library(igraph)
+library(tidyverse)
+```
+
+So this idealised scenario, where one candidate is elected or eliminated each count. Transfers kept within party and Independents. 
+
+```{r}
+Synthetic_Up <- read_csv("C:\\Users\\lilly\\Documents\\Synethtic_3.csv")
+ 
+Synthetic_Up
+```
+
+
+
+```{r}
+nodes_2 <- Synthetic_Up %>%
+  select(`Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes_2, "C:\\Users\\lilly\\Downloads\\Synethic_nodes_Up.csv")
+```
+
+```{r}
+# Get negative transfers (losing)
+sources <- Synthetic_Up %>%
+  filter(Transfers < 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Source = `Candidate Id`,
+         Count_Number,
+         Votes_Lost = Transfers) %>%
+  mutate(Votes_Lost = abs(Votes_Lost))
+
+# Get positive transfers (recieving)
+recipients <- Synthetic_Up %>%
+  filter(Transfers > 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Target = `Candidate Id`,
+         Count_Number,
+         Transfers)
+
+# Join on same Count Number
+edges_2 <- recipients %>%
+  inner_join(sources, 
+             by = "Count_Number",
+             relationship = "many-to-many") %>%
+  select(from = Source, to = Target, Transfers) %>%
+  group_by(from, to) %>%
+  summarise(Transfers = sum(Transfers, na.rm = TRUE), .groups = "drop")
+
+sum(edges_2$Transfers)
+write_csv(edges_2, "C:/Users/lilly/Downloads/Synthetic_edges_Up.csv")
+```
+
+
+```{r}
+#better graph
+library(ggraph)
+nodes_2 <- Synthetic_Up %>%
+ group_by(`Candidate Id`) %>%
+  # Get the final status of candidate
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(name = `Candidate Id`)
+g_2 <- graph_from_data_frame(edges_2, vertices = nodes_2, directed = TRUE)
+ggraph(g_2, layout = "fr") +
+  # Edges (vote transfers)
+  geom_edge_link(
+    aes(width = Transfers, alpha = Transfers),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(3, 'mm'),
+    lineend = "round"
+  ) +
+  
+ geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red")) +
+  
+  # Labels (candidate names)
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,    #  repel overlapping labels
+    size = 3.5,
+    fontface = "bold",
+    color = "black"
+  ) +
+  
+  #  Legend and theme
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network – General Election") 
+```
+
+
+```{r}
+print(colnames(nodes_2))
+print(nodes_2)
+```
+
+
+```{r}
+g_2 <- graph_from_data_frame(edges_2, vertices = nodes_2, directed = TRUE)
+g_undir <- as.undirected(g_2, mode = "collapse", edge.attr.comb = "sum")
+
+#  Infomap (directed best for flow networks)
+im <- cluster_infomap(g_2)
+cat("2. INFOMAP\n")
+cat("Communities:", length(im), "\n")
+print(membership(im))
+cat("\n")
+
+#  Louvain (undirected)
+lv <- cluster_louvain(g_undir)
+cat("3. LOUVAIN\n")
+cat("Communities:", length(lv), "\n")
+cat("Modularity:", modularity(lv), "\n")
+print(membership(lv))
+cat("\n")
+
+# Visualize  
+plot(lv, g_undir,
+     vertex.label = paste(V(g_2)$`Candidate First Name` , 
+                          V(g_2)$`Candidate surname`),
+     vertex.size = 8,
+     main = "Communities")
+```
+Weighted synethetic data
+```{r}
+library(ggraph)
+
+
+nodes_2 <- Synthetic_Up%>%
+  group_by(`Candidate Id`) %>%
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(id = as.character(`Candidate Id`))
+
+# Create edges with  weight including percentages
+edges_weighted <- edges_2 %>%
+
+  group_by(to) %>%
+  mutate(
+    total_received = sum(Transfers, na.rm = TRUE),
+    proportion_of_recipient = Transfers / total_received
+  ) %>%
+  ungroup() %>%
+  
+  group_by(from) %>%
+  mutate(
+    total_sent = sum(Transfers, na.rm = TRUE),
+    proportion_of_sender = Transfers / total_sent
+  ) %>%
+  ungroup() %>%
+  # Add weights
+  mutate(
+    weight = Transfers,
+    weight_normalised = Transfers / max(Transfers, na.rm = TRUE),
+    from = as.character(from),
+    to = as.character(to)
+  )
+
+# Create graph with all weight metrics
+graph_w <- graph_from_data_frame(edges_weighted, 
+                                 vertices = nodes_2, 
+                                 directed = TRUE)
+
+# Verify edge attributes are there
+print("Edge attributes in graph:")
+print(edge_attr_names(graph_w))
+
+# Plot with ggraph
+ggraph(graph_w, layout = "fr") +
+  # Edges with your weight metrics
+  geom_edge_link(
+    aes(width = weight, alpha = weight, 
+        label = paste0(round(proportion_of_sender * 100, 1), "%")),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(3, 'mm'),
+    lineend = "round"
+  ) +
+  
+  # Nodes colored by status
+  geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red",
+                                 "Not Elected/Excluded" = "grey60")) +
+  
+  # Labels
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,
+    size = 3.5,
+    fontface = "bold",
+    color = "black"
+  ) +
+  
+  # Scale edges
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network – Synthetic Election")
+
+ 
+```
+```{r}
+ graph_w_undirected <- as.undirected(graph_w, mode = "collapse", 
+                                    edge.attr.comb = "sum")
+
+louvain_weighted <- cluster_louvain(graph_w_undirected, weights = E(graph_w_undirected)$proportion_of_sender)
+
+# community membership to graph
+V(graph_w)$community <- membership(louvain_weighted)
+
+plot(louvain_weighted, graph_w,
+     vertex.label = paste(V(graph_w_undirected)$`Candidate First Name`, 
+                          V(graph_w_undirected)$`Candidate surname`),
+     vertex.size = 5,
+     vertex.label.cex = 0.7,
+     edge.width = E(graph_w)$weight / 500,  # Scale down the absolute transfers
+     edge.arrow.size = 0.4,
+     main = "Synthetic Election Communities (Louvain weighted )")
+
+# Print results
+cat("Community Membership:\n")
+print(louvain_weighted$membership)
+cat("\nModularity:", modularity(louvain_weighted), "\n\n")
+
+ 
+```
+
+
+```{r}
+# Community membership for each candidate
+cat("--- Community Membership ---\n")
+community_summary <- data.frame(
+  Candidate_ID = V(graph_w_undirected)$id,
+  Candidate = paste(V(graph_w_undirected)$`Candidate First Name`, 
+                   V(graph_w_undirected)$`Candidate surname`),
+   Community = as.vector(membership(louvain_weighted)),  # Convert to vector
+  Status = V(graph_w_undirected)$Status
+) %>%
+  arrange(Community, Candidate)
+
+print(community_summary)
+```
+
+```{r}
+ld2 <- cluster_leiden(
+  graph_w_undirected,
+  objective_function = "modularity",
+  weights = E(graph_w_undirected)$Transfers,   # rename edge attribute if needed
+  resolution_parameter = 1,
+  n_iterations = 2
+)
+
+plot(
+  ld2, graph_w_undirected,
+  vertex.label = paste(V(graph_w_undirected)$`Candidate First Name`, 
+                       V(graph_w_undirected)$`Candidate surname`),
+  vertex.size = 8,
+  edge.width = E(graph_w_undirected)$Transfers / 500,
+  edge.label = E(graph_w_undirected)$Transfers,
+  edge.label.cex = 0.7,
+  edge.arrow.size = 0.5,
+  main = "Synethetic  Communities (Leiden, undirected)"
+)
+modularity(graph_w_undirected, membership(ld2),
+           weights = E(graph_w_undirected)$Transfers)
+```
+
+
+
+When multiple candidates were elected at once in count 4 and 5 combined and count 10 11.
+```{r}
+Synthetic_mul<- read_csv("C:\\Users\\lilly\\Documents\\Synethetic_Multiple.csv")
+ 
+Synthetic_mul
+```
+
+```{r}
+nodes_5 <- Synthetic_mul %>%
+  select(`Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes_5, "C:\\Users\\lilly\\Downloads\\Synethic_nodes_mul.csv")
+```
+
+
+```{r}
+# Get negative transfers (losing)
+sources <- Synthetic_mul %>%
+  filter(Transfers < 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Source = `Candidate Id`,
+         Count_Number,
+         Votes_Lost = Transfers) %>%
+  mutate(Votes_Lost = abs(Votes_Lost))
+
+# Get positive transfers (recieving)
+recipients <- Synthetic_mul %>%
+  filter(Transfers > 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Target = `Candidate Id`,
+         Count_Number,
+         Transfers)
+
+# Join on same Count Number
+edges_5 <- recipients %>%
+  inner_join(sources, 
+             by = "Count_Number",
+             relationship = "many-to-many") %>%
+  select(from = Source, to = Target, Transfers) %>%
+  group_by(from, to) %>%
+  summarise(Transfers = sum(Transfers, na.rm = TRUE), .groups = "drop")
+
+sum(edges_5$Transfers)
+write_csv(edges_5, "C:/Users/lilly/Downloads/Synthetic_edges_mul.csv")
+```
+
+```{r}
+#better graph
+library(ggraph)
+nodes_5 <- Synthetic_mul %>%
+ group_by(`Candidate Id`) %>%
+  # Get the final status of candidate
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(name = `Candidate Id`)
+g_2 <- graph_from_data_frame(edges_5, vertices = nodes_5, directed = TRUE)
+ggraph(g_2, layout = "fr") +
+  # Edges (vote transfers)
+  geom_edge_link(
+    aes(width = Transfers, alpha = Transfers),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(3, 'mm'),
+    lineend = "round"
+  ) +
+  
+ geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red")) +
+  
+  # Labels (candidate names)
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,    #  repel overlapping labels
+    size = 3.5,
+    fontface = "bold",
+    color = "black"
+  ) +
+  
+  #  Legend and theme
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network – General Election") 
+```
+
+```{r}
+g_2 <- graph_from_data_frame(edges_5, vertices = nodes_5, directed = TRUE)
+g_undir <- as.undirected(g_2, mode = "collapse", edge.attr.comb = "sum")
+
+#  Infomap (directed best for flow networks)
+im <- cluster_infomap(g_2)
+cat("2. INFOMAP\n")
+cat("Communities:", length(im), "\n")
+print(membership(im))
+cat("\n")
+
+#  Louvain (undirected)
+lv <- cluster_louvain(g_undir)
+cat("3. LOUVAIN\n")
+cat("Communities:", length(lv), "\n")
+cat("Modularity:", modularity(lv), "\n")
+print(membership(lv))
+cat("\n")
+
+# Visualize  
+plot(lv, g_undir,
+     vertex.label = paste(V(g_2)$`Candidate First Name` , 
+                          V(g_2)$`Candidate surname`),
+     vertex.size = 8,
+     main = "Communities")
+```
+
+```{r}
+library(ggraph)
+
+
+nodes_5 <- Synthetic_mul%>%
+  group_by(`Candidate Id`) %>%
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(id = as.character(`Candidate Id`))
+
+# Create edges with  weight including percentages
+edges_weighted <- edges_5 %>%
+
+  group_by(to) %>%
+  mutate(
+    total_received = sum(Transfers, na.rm = TRUE),
+    proportion_of_recipient = Transfers / total_received
+  ) %>%
+  ungroup() %>%
+  
+  group_by(from) %>%
+  mutate(
+    total_sent = sum(Transfers, na.rm = TRUE),
+    proportion_of_sender = Transfers / total_sent
+  ) %>%
+  ungroup() %>%
+  # Add weights
+  mutate(
+    weight = Transfers,
+    weight_normalised = Transfers / max(Transfers, na.rm = TRUE),
+    from = as.character(from),
+    to = as.character(to)
+  )
+
+# Create graph with all weight metrics
+graph_w <- graph_from_data_frame(edges_weighted, 
+                                 vertices = nodes_5, 
+                                 directed = TRUE)
+
+# Verify edge attributes are there
+print("Edge attributes in graph:")
+print(edge_attr_names(graph_w))
+
+# Plot with ggraph
+ggraph(graph_w, layout = "fr") +
+  # Edges with your weight metrics
+  geom_edge_link(
+    aes(width = weight, alpha = weight, 
+        label = paste0(round(proportion_of_sender * 100, 1), "%")),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(5, 'mm'),
+    lineend = "round"
+  ) +
+  
+  # Nodes colored by status
+  geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red",
+                                 "Not Elected/Excluded" = "grey60")) +
+  
+  # Labels
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,
+    size = 3.5,
+    fontface = "bold",
+    color = "black",
+    box.padding = 0.5,      
+    point.padding = 0.5,  
+    max.overlaps = 20       # Allow more overlaps to be resolved
+  ) +
+  
+  # Scale edges
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network – Synthetic Election")
+
+ 
+```
+
+```{r}
+ graph_w_undirected <- as.undirected(graph_w, mode = "collapse", 
+                                    edge.attr.comb = "sum")
+
+louvain_weighted <- cluster_louvain(graph_w_undirected, weights = E(graph_w_undirected)$proportion_of_sender)
+
+# community membership to graph
+V(graph_w)$community <- membership(louvain_weighted)
+set.seed(2003)
+# Make the plot larger
+par(mar = c(1, 1, 2, 1))  # Reduce margins
+plot(louvain_weighted, graph_w,
+     vertex.label = paste(V(graph_w_undirected)$`Candidate First Name`, 
+                          V(graph_w_undirected)$`Candidate surname`),
+     vertex.size = 8,                    # Larger vertices
+     vertex.label.cex = 0.6,             # Slightly smaller text
+     vertex.label.dist = 2,              # More distance from vertex
+     vertex.label.degree = -pi/2,        # Labels above
+     edge.width = E(graph_w)$weight / 500,  # Scale down the absolute transfers
+     edge.arrow.size = 0.4,
+     main = "Synthetic Election Communities mult (Louvain weighted )")
+
+# Print results
+cat("Community Membership:\n")
+print(louvain_weighted$membership)
+cat("\nModularity:", modularity(louvain_weighted), "\n\n")
+
+ 
+```
+
+This one is after the first prefernce votes all candidates after recived equal number of votes.
+```{r}
+Synthetic_Mod <- read_csv("C:\\Users\\lilly\\Documents\\Synethetic_modified .csv")
+ 
+Synthetic_Mod
+```
+
+
+```{r}
+nodes_Mod <- Synthetic_Mod %>%
+  select(`Candidate First Name`, `Candidate surname`) %>%
+  distinct() %>% #Remove any duplicate rows
+  mutate(name = paste(`Candidate First Name`, `Candidate surname`))
+
+write_csv(nodes_Mod, "C:\\Users\\lilly\\Downloads\\Synethic_nodes_Up.csv")
+```
+
+
+```{r}
+# Get negative transfers (losing)
+sources <- Synthetic_Mod %>%
+  filter(Transfers < 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Source = `Candidate Id`,
+         Count_Number,
+         Votes_Lost = Transfers) %>%
+  mutate(Votes_Lost = abs(Votes_Lost))
+
+# Get positive transfers (recieving)
+recipients <- Synthetic_Mod %>%
+  filter(Transfers > 0) %>%
+  mutate(Count_Number = as.numeric(`Count Number`)) %>%
+  select(Target = `Candidate Id`,
+         Count_Number,
+         Transfers)
+
+# Join on same Count Number
+edges_Mod<- recipients %>%
+  inner_join(sources, 
+             by = "Count_Number",
+             relationship = "many-to-many") %>%
+  select(from = Source, to = Target, Transfers) %>%
+  group_by(from, to) %>%
+  summarise(Transfers = sum(Transfers, na.rm = TRUE), .groups = "drop")
+
+sum(edges_Mod$Transfers)
+write_csv(edges_Mod, "C:/Users/lilly/Downloads/Synthetic_edges_Mod.csv")
+```
+
+```{r}
+#better graph
+library(ggraph)
+nodes_Mod <- Synthetic_Mod %>%
+ group_by(`Candidate Id`) %>%
+  # Get the final status of candidate
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(name = `Candidate Id`)
+g_2 <- graph_from_data_frame(edges_Mod, vertices = nodes_Mod, directed = TRUE)
+ggraph(g_2, layout = "fr") +
+  # Edges (vote transfers)
+  geom_edge_link(
+    aes(width = Transfers, alpha = Transfers),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(3, 'mm'),
+    lineend = "round"
+  ) +
+  
+ geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red")) +
+  
+  # Labels (candidate names)
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,    #  repel overlapping labels
+    size = 3.5,
+    fontface = "bold",
+    color = "black"
+  ) +
+  
+  #  Legend and theme
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network – General Election") 
+```
+
+```{r}
+g_mod<- graph_from_data_frame(edges_Mod, vertices = nodes_Mod, directed = TRUE)
+g_undir_mod <- as.undirected(g_mod, mode = "collapse", edge.attr.comb = "sum")
+
+#  Infomap (directed best for flow networks)
+im <- cluster_infomap(g_mod)
+cat("2. INFOMAP\n")
+cat("Communities:", length(im), "\n")
+print(membership(im))
+cat("\n")
+
+#  Louvain (undirected)
+lv <- cluster_louvain(g_undir_mod)
+cat("3. LOUVAIN\n")
+cat("Communities:", length(lv), "\n")
+cat("Modularity:", modularity(lv), "\n")
+print(membership(lv))
+cat("\n")
+
+# Visualize  
+plot(lv, g_undir_mod,
+     vertex.label = paste(V(g_2)$`Candidate First Name` , 
+                          V(g_2)$`Candidate surname`),
+     vertex.size = 8,
+     main = "Communities")
+```
+
+```{r}
+library(ggraph)
+
+
+nodes_Mod <- Synthetic_Mod%>%
+  group_by(`Candidate Id`) %>%
+  mutate(Status = ifelse(any(Result == "Elected", na.rm = TRUE), "Elected",
+                  ifelse(any(Result == "Excluded", na.rm = TRUE), "Excluded", 
+                         "Not Elected/Excluded"))) %>%
+  distinct(`Candidate Id`, `Candidate First Name`, `Candidate surname`, Status) %>%
+  mutate(id = as.character(`Candidate Id`))
+
+# Create edges with  weight including percentages
+edges_weighted <- edges_Mod %>%
+
+  group_by(to) %>%
+  mutate(
+    total_received = sum(Transfers, na.rm = TRUE),
+    proportion_of_recipient = Transfers / total_received
+  ) %>%
+  ungroup() %>%
+  
+  group_by(from) %>%
+  mutate(
+    total_sent = sum(Transfers, na.rm = TRUE),
+    proportion_of_sender = Transfers / total_sent
+  ) %>%
+  ungroup() %>%
+  # Add weights
+  mutate(
+    weight = Transfers,
+    weight_normalised = Transfers / max(Transfers, na.rm = TRUE),
+    from = as.character(from),
+    to = as.character(to)
+  )
+
+# Create graph with all weight metrics
+graph_w <- graph_from_data_frame(edges_weighted, 
+                                 vertices = nodes_2, 
+                                 directed = TRUE)
+
+# Verify edge attributes are there
+print("Edge attributes in graph:")
+print(edge_attr_names(graph_w))
+
+# Plot with ggraph
+ggraph(graph_w, layout = "fr") +
+  # Edges with your weight metrics
+  geom_edge_link(
+    aes(width = weight, alpha = weight, 
+        label = paste0(round(proportion_of_sender * 100, 1), "%")),
+    colour = "grey50",
+    arrow = arrow(length = unit(4, 'mm'), type = "closed"),
+    end_cap = circle(5, 'mm'),
+    lineend = "round"
+  ) +
+  
+  # Nodes colored by status
+  geom_node_point(aes(color = Status), size = 6, alpha = 0.8) +
+  scale_color_manual(values = c("Elected" = "darkgreen", 
+                                 "Excluded" = "red",
+                                 "Not Elected/Excluded" = "grey60")) +
+  
+  # Labels
+  geom_node_text(
+    aes(label = paste(`Candidate First Name`, `Candidate surname`)),
+    repel = TRUE,
+    size = 3.5,
+    fontface = "bold",
+    color = "black",
+    box.padding = 0.5,      
+    point.padding = 0.5,  
+    max.overlaps = 20       # Allow more overlaps to be resolved
+  ) +
+  
+  # Scale edges
+  scale_edge_width(range = c(0.2, 2)) +
+  scale_edge_alpha(range = c(0.3, 0.9)) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5)
+  ) +
+  ggtitle("Vote Transfer Network – Synthetic Election")
+
+ 
+```
+
+```{r}
+ graph_w_undirected <- as.undirected(graph_w, mode = "collapse", 
+                                    edge.attr.comb = "sum")
+
+louvain_weighted <- cluster_louvain(graph_w_undirected, weights = E(graph_w_undirected)$proportion_of_sender)
+
+# community membership to graph
+V(graph_w)$community <- membership(louvain_weighted)
+set.seed(2003)
+# Make the plot larger
+par(mar = c(1, 1, 2, 1))  # Reduce margins
+plot(louvain_weighted, graph_w,
+     vertex.label = paste(V(graph_w_undirected)$`Candidate First Name`, 
+                          V(graph_w_undirected)$`Candidate surname`),
+     vertex.size = 8,                    # Larger vertices
+     vertex.label.cex = 0.6,             # Slightly smaller text
+     vertex.label.dist = 2,              # More distance from vertex
+     vertex.label.degree = -pi/2,        # Labels above
+     edge.width = E(graph_w)$weight / 500,  # Scale down the absolute transfers
+     edge.arrow.size = 0.4,
+     main = "Synthetic Election Communities (Louvain weighted )")
+
+# Print results
+cat("Community Membership:\n")
+print(louvain_weighted$membership)
+cat("\nModularity:", modularity(louvain_weighted), "\n\n")
+
+ 
+```
+
+
+```{r}
+communities <- membership(louvain_weighted)
+
+# Print members of each community
+for(i in 1:max(communities)) {
+  cat("\nCommunity", i, ":\n")
+  members <- which(communities == i)
+  names <- paste(V(graph_w_undirected)$`Candidate First Name`[members],
+                 V(graph_w_undirected)$`Candidate surname`[members])
+  cat(paste(names, collapse = "\n"), "\n")
+}
+``` 
+Community 2 as a result of Bills election
